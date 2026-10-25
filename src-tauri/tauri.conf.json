@@ -23,7 +23,8 @@
         "fullscreen": false,
         "theme": "Dark",
         "backgroundColor": "#090C0E",
-        "decorations": true
+        "decorations": true,
+        "devtools": true
       }
     ],
     "security": {

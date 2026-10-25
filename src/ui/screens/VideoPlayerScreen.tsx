@@ -19,7 +19,7 @@ import {
 import { SessionBundle } from '../../core/model/session';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { OverlayRenderer } from '../../engine/canvas/overlayRenderer';
-import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR } from '../../core/profile/vehicleProfile';
+import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR, loadProfileFromStorage } from '../../core/profile/vehicleProfile';
 import { RenderModal } from './RenderModal';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import {
@@ -38,6 +38,8 @@ interface VideoPlayerScreenProps {
 export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, profile: propProfile }) => {
   const profile = useMemo(() => {
     if (propProfile) return propProfile;
+    const stored = loadProfileFromStorage();
+    if (stored) return stored;
     if (session.vehicleConfigWithOrigin) {
       return deriveProfileFromAppConfig(session.vehicleConfigWithOrigin.config);
     }

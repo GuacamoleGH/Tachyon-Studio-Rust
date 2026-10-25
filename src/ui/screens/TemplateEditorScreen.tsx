@@ -23,7 +23,7 @@ import {
   TEMPLATE_MYCHRON_5,
 } from '../../core/templates/templateModel';
 import { SessionBundle } from '../../core/model/session';
-import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR } from '../../core/profile/vehicleProfile';
+import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR, loadProfileFromStorage } from '../../core/profile/vehicleProfile';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { CockpitColors } from '../../core/theme/colors';
 
@@ -37,6 +37,8 @@ type DragMode = 'none' | 'move' | 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 
 export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({ session, profile: propProfile }) => {
   const profile = useMemo(() => {
     if (propProfile) return propProfile;
+    const stored = loadProfileFromStorage();
+    if (stored) return stored;
     if (session?.vehicleConfigWithOrigin) {
       return deriveProfileFromAppConfig(session.vehicleConfigWithOrigin.config);
     }

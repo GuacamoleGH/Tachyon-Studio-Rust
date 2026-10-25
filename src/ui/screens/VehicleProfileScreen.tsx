@@ -20,6 +20,7 @@ import {
   VEHICLE_PRESETS,
   validateVehicleProfile,
   saveProfileToStorage,
+  loadProfileFromStorage,
   deriveProfileFromAppConfig,
   loadCustomPresets,
   saveCustomPreset,
@@ -33,21 +34,38 @@ import { SessionBundle } from '../../core/model/session';
 
 interface VehicleProfileScreenProps {
   session?: SessionBundle | null;
+  profile?: VehicleProfile;
   onProfileUpdated?: (profile: VehicleProfile) => void;
 }
 
 export const VehicleProfileScreen: React.FC<VehicleProfileScreenProps> = ({
   session,
+  profile: propProfile,
   onProfileUpdated,
 }) => {
-  // Inicializar con el perfil de la sesión si existe, o preset estándar
-  const initialProfile = session?.vehicleConfigWithOrigin
-    ? deriveProfileFromAppConfig(session.vehicleConfigWithOrigin.config, 'Perfil de la Sesión')
-    : PRESET_GASOLINA_ESTANDAR;
+  // Prioridad de perfil inicial:
+  // 1. Perfil recibido por prop
+  // 2. Perfil guardado previamente por el usuario en localStorage
+  // 3. Perfil derivado de session.json (si existe)
+  // 4. Preset estándar por defecto (Gasolina)
+  const initialProfile =
+    propProfile ||
+    loadProfileFromStorage() ||
+    (session?.vehicleConfigWithOrigin
+      ? deriveProfileFromAppConfig(session.vehicleConfigWithOrigin.config, 'Perfil de la Sesión')
+      : PRESET_GASOLINA_ESTANDAR);
 
   const [profile, setProfile] = useState<VehicleProfile>(initialProfile);
   const [testRpm, setTestRpm] = useState<number>(profile.rpm.idle);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  // Sincronizar si propProfile cambia desde fuera
+  useEffect(() => {
+    if (propProfile && propProfile.id !== profile.id) {
+      setProfile(propProfile);
+      setTestRpm(propProfile.rpm.idle);
+    }
+  }, [propProfile]);
 
   // Presets personalizados de usuario en localStorage
   const [customPresets, setCustomPresets] = useState<VehicleProfile[]>(() => loadCustomPresets());
@@ -167,7 +185,10 @@ export const VehicleProfileScreen: React.FC<VehicleProfileScreenProps> = ({
   const handlePresetSelect = (preset: VehicleProfile) => {
     setProfile(preset);
     setTestRpm(preset.rpm.idle);
+    saveProfileToStorage(preset);
     onProfileUpdated?.(preset);
+    setSaveMessage(`Preset "${preset.name}" activado y guardado como predeterminado.`);
+    setTimeout(() => setSaveMessage(null), 3000);
   };
 
   const handleOpenAddModal = () => {
@@ -209,9 +230,10 @@ export const VehicleProfileScreen: React.FC<VehicleProfileScreenProps> = ({
     setCustomPresets(updated);
     setProfile(presetToSave);
     setTestRpm(presetToSave.rpm.idle);
+    saveProfileToStorage(presetToSave);
     onProfileUpdated?.(presetToSave);
     setIsAddModalOpen(false);
-    setSaveMessage(`¡Preset "${presetToSave.name}" guardado y activado con éxito!`);
+    setSaveMessage(`¡Preset "${presetToSave.name}" guardado y activado como predeterminado!`);
     setTimeout(() => setSaveMessage(null), 3500);
   };
 
@@ -219,6 +241,13 @@ export const VehicleProfileScreen: React.FC<VehicleProfileScreenProps> = ({
     if (window.confirm(`¿Deseas eliminar el preset "${name}"?`)) {
       const updated = deleteCustomPreset(id);
       setCustomPresets(updated);
+      if (profile.id === id) {
+        const fallback = PRESET_GASOLINA_ESTANDAR;
+        setProfile(fallback);
+        setTestRpm(fallback.rpm.idle);
+        saveProfileToStorage(fallback);
+        onProfileUpdated?.(fallback);
+      }
       setSaveMessage(`Preset "${name}" eliminado.`);
       setTimeout(() => setSaveMessage(null), 3000);
     }
@@ -226,7 +255,11 @@ export const VehicleProfileScreen: React.FC<VehicleProfileScreenProps> = ({
 
   const handleSaveToStorage = () => {
     saveProfileToStorage(profile);
-    setSaveMessage('¡Perfil guardado en el navegador con éxito!');
+    if (profile.id.startsWith('custom_')) {
+      const updated = saveCustomPreset(profile);
+      setCustomPresets(updated);
+    }
+    setSaveMessage('¡Perfil guardado con éxito como predeterminado!');
     setTimeout(() => setSaveMessage(null), 3000);
     onProfileUpdated?.(profile);
   };

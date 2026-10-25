@@ -10,6 +10,8 @@ import {
   loadCustomPresets,
   saveCustomPreset,
   deleteCustomPreset,
+  saveProfileToStorage,
+  loadProfileFromStorage,
 } from '../src/core/profile/vehicleProfile';
 
 describe('Vehicle Profile & Validation', () => {
@@ -56,6 +58,14 @@ describe('Vehicle Profile & Validation', () => {
     const remaining = deleteCustomPreset('custom_test_1');
     expect(remaining).toHaveLength(0);
     expect(loadCustomPresets()).toHaveLength(0);
+
+    // Persistencia del perfil activo en storage
+    expect(loadProfileFromStorage()).toBeNull();
+    saveProfileToStorage(PRESET_MAZDA3);
+    const loadedActive = loadProfileFromStorage();
+    expect(loadedActive).not.toBeNull();
+    expect(loadedActive?.id).toBe(PRESET_MAZDA3.id);
+    expect(loadedActive?.rpm.scale_max).toBe(8000);
   });
 
   it('detecta incoherencias físicas en el perfil y las rechaza', () => {

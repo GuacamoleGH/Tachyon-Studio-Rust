@@ -8,12 +8,20 @@ import { SessionSummaryScreen } from './ui/screens/SessionSummaryScreen';
 import { VehicleProfileScreen } from './ui/screens/VehicleProfileScreen';
 import { VideoPlayerScreen } from './ui/screens/VideoPlayerScreen';
 import { TemplateEditorScreen } from './ui/screens/TemplateEditorScreen';
-import { VehicleProfile, deriveProfileFromAppConfig } from './core/profile/vehicleProfile';
+import {
+  VehicleProfile,
+  deriveProfileFromAppConfig,
+  loadProfileFromStorage,
+  saveProfileToStorage,
+  PRESET_GASOLINA_ESTANDAR,
+} from './core/profile/vehicleProfile';
 
 export const App: React.FC = () => {
   const [session, setSession] = useState<SessionBundle | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>('summary');
-  const [currentProfile, setCurrentProfile] = useState<VehicleProfile | undefined>(undefined);
+  const [currentProfile, setCurrentProfile] = useState<VehicleProfile>(() => {
+    return loadProfileFromStorage() || PRESET_GASOLINA_ESTANDAR;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [progressText, setProgressText] = useState('');
   const [progressPercent, setProgressPercent] = useState(0);
@@ -38,8 +46,13 @@ export const App: React.FC = () => {
         setProgressPercent(pct);
       });
       setSession(bundle);
-      if (bundle.vehicleConfigWithOrigin) {
-        setCurrentProfile(deriveProfileFromAppConfig(bundle.vehicleConfigWithOrigin.config));
+      // Mantener el preset que el usuario haya seleccionado o guardado previamente.
+      // Solo inicializar con la configuración de session.json si el usuario no tiene ningún perfil guardado.
+      const savedProfile = loadProfileFromStorage();
+      if (!savedProfile && bundle.vehicleConfigWithOrigin) {
+        const derived = deriveProfileFromAppConfig(bundle.vehicleConfigWithOrigin.config);
+        setCurrentProfile(derived);
+        saveProfileToStorage(derived);
       }
       setActiveTab('summary');
     } catch (err: unknown) {
@@ -114,7 +127,14 @@ export const App: React.FC = () => {
 
       <main className="flex-1 pb-16">
         {activeTab === 'profile' ? (
-          <VehicleProfileScreen session={session} onProfileUpdated={setCurrentProfile} />
+          <VehicleProfileScreen
+            session={session}
+            profile={currentProfile}
+            onProfileUpdated={(updated) => {
+              setCurrentProfile(updated);
+              saveProfileToStorage(updated);
+            }}
+          />
         ) : activeTab === 'editor' ? (
           <TemplateEditorScreen session={session} profile={currentProfile} />
         ) : activeTab === 'player' && session ? (

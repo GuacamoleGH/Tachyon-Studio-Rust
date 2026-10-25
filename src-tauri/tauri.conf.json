@@ -14,12 +14,16 @@
       {
         "label": "main",
         "title": "Tachyon Studio",
-        "width": 1280,
-        "height": 800,
-        "minWidth": 900,
-        "minHeight": 600,
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 680,
+        "center": true,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "theme": "Dark",
+        "backgroundColor": "#090C0E",
+        "decorations": true
       }
     ],
     "security": {
@@ -28,7 +32,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -36,8 +40,18 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "android": {
-      "debugApplicationIdSuffix": ".debug"
+    "copyright": "Tachyon Studio",
+    "shortDescription": "Tachyon Studio Desktop - Telemetría y Vídeo en Streaming",
+    "longDescription": "Aplicación de escritorio para análisis, sincronización y renderizado de telemetría automovilística con vídeo en streaming de memoria acotada.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Spanish",
+          "English"
+        ],
+        "displayLanguageSelector": false
+      }
     }
   }
 }

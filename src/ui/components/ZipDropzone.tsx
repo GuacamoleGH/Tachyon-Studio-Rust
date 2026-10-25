@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Upload, Zap, AlertCircle } from 'lucide-react';
+import { isTauriEnvironment } from '../../core/fs/fileSystemAdapter';
 
 interface ZipDropzoneProps {
   onFileSelected: (file: File) => void;
@@ -44,6 +45,10 @@ export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    if (isTauriEnvironment()) {
+      // En Tauri el evento nativo onDragDropEvent captura la ruta absoluta en disco
+      return;
+    }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       if (file.name.toLowerCase().endsWith('.zip')) {

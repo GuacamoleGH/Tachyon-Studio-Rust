@@ -461,9 +461,11 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
               handleVideoLoadedMetadata();
             }}
             onError={() => {
-              console.error('Error al decodificar vídeo en el navegador:', videoRef.current?.error);
+              console.error('Error al decodificar vídeo en el reproductor:', videoRef.current?.error);
               setVideoLoadError(
-                'El navegador no pudo reproducir el vídeo descomprimido del archivo ZIP (los navegadores restringen a 2 GB los Blobs en memoria RAM). Vincula el archivo MP4 original directamente desde tu disco con el botón de abajo para reproducirlo al instante.'
+                isTauriEnvironment()
+                  ? 'No se pudo reproducir el vídeo automáticamente. Puedes vincular el archivo de vídeo MP4 original directamente desde tu disco con el botón de abajo.'
+                  : 'El navegador no pudo reproducir el vídeo. Vincula el archivo MP4 original directamente desde tu disco.'
               );
             }}
             onEnded={() => setIsPlaying(false)}

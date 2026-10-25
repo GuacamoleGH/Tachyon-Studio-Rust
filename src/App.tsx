@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { SessionBundle } from './core/model/session';
 import { importSessionZip, ZipInputSource } from './core/zip/zipImporter';
 import { isTauriEnvironment, openSessionDialog } from './core/fs/fileSystemAdapter';
@@ -28,6 +28,38 @@ export const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // En entorno Tauri de escritorio, capturar eventos nativos de arrastrar y soltar
+  // para obtener la ruta absoluta en disco y evitar que el navegador limite a Blobs en RAM
+  useEffect(() => {
+    if (!isTauriEnvironment()) return;
+
+    let unlisten: (() => void) | undefined;
+    import('@tauri-apps/api/webviewWindow')
+      .then(({ getCurrentWebviewWindow }) => {
+        return getCurrentWebviewWindow().onDragDropEvent((event) => {
+          if (event.payload.type === 'drop') {
+            const paths = event.payload.paths;
+            if (paths && paths.length > 0) {
+              const zipPath = paths.find((p) => p.toLowerCase().endsWith('.zip')) || paths[0];
+              if (zipPath.toLowerCase().endsWith('.zip')) {
+                handleProcessFile({ nativeZipPath: zipPath });
+              }
+            }
+          }
+        });
+      })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch((err) => {
+        console.warn('No se pudo inicializar listener nativo de drag&drop:', err);
+      });
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   const handleProcessFile = async (file: ZipInputSource) => {
     let source = file;

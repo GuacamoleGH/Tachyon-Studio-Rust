@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cockpit-black: #090C0E;
+  --color-cockpit-surface: #13181E;
+  --color-cockpit-card: #1A222B;
+  --color-cockpit-border: #2C3947;
+  
+  --color-neon-green: #00E676;
+  --color-neon-cyan: #00E5FF;
+  --color-neon-red: #FF1744;
+  --color-neon-amber: #FFB300;
+  --color-neon-blue: #2979FF;
+  
+  --color-text-primary: #F0F4F8;
+  --color-text-secondary: #8B9CB0;
+  --color-text-muted: #4A5568;
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-cockpit-black);
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #090C0E;
+}
+::-webkit-scrollbar-thumb {
+  background: #2C3947;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3D4F63;
+}

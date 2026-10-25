@@ -14,17 +14,20 @@ import {
   Film,
   Cpu,
   Upload,
+  Zap,
 } from 'lucide-react';
 import { SessionBundle } from '../../core/model/session';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { OverlayRenderer } from '../../engine/canvas/overlayRenderer';
 import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR } from '../../core/profile/vehicleProfile';
 import { RenderModal } from './RenderModal';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import {
   isTauriEnvironment,
   openVideoDialog,
   createTauriFileSource,
+  extractNativeZipVideoToTemp,
+  NativeFileInfo,
 } from '../../core/fs/fileSystemAdapter';
 
 interface VideoPlayerScreenProps {
@@ -63,6 +66,46 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [overlayOpacity, setOverlayOpacity] = useState<number>(1.0);
   const [isRenderModalOpen, setIsRenderModalOpen] = useState<boolean>(false);
+  const [isExtracting, setIsExtracting] = useState<boolean>(false);
+
+  const handleAutoExtractVideo = useCallback(async () => {
+    if (!session.videoZipPath || !session.videoFileName) return;
+    setIsExtracting(true);
+    setVideoLoadError('Extrayendo vídeo de la sesión a disco temporal (%TEMP%) sin consumo de RAM...');
+    try {
+      const tempPath = await extractNativeZipVideoToTemp(session.videoZipPath, session.videoFileName);
+      const info = await invoke<NativeFileInfo>('get_file_info', { path: tempPath });
+      const tauriSource = createTauriFileSource(tempPath, info.size);
+      const assetUrl = convertFileSrc(tempPath);
+
+      session.videoPath = tempPath;
+      session.videoSource = tauriSource;
+      session.videoUrl = assetUrl;
+      session.hasVideo = true;
+      session.videoOversized = false;
+      session.videoLoadWarning = undefined;
+      session.videoCompressedInZip = false;
+
+      setVideoUrl(assetUrl);
+      setVideoLoadError(null);
+      if (videoRef.current) {
+        videoRef.current.src = assetUrl;
+        videoRef.current.load();
+      }
+    } catch (err: any) {
+      console.error('Error al extraer vídeo del ZIP:', err);
+      setVideoLoadError(`No se pudo extraer el vídeo automáticamente: ${err?.message || err}. Puedes vincularlo desde disco.`);
+    } finally {
+      setIsExtracting(false);
+    }
+  }, [session]);
+
+  // Si el vídeo está comprimido en el ZIP y estamos en Tauri, intentar auto-extraer de inmediato
+  useEffect(() => {
+    if (!videoUrl && session.videoCompressedInZip && session.videoZipPath && isTauriEnvironment() && !isExtracting) {
+      handleAutoExtractVideo();
+    }
+  }, [videoUrl, session, isExtracting, handleAutoExtractVideo]);
 
   // Snapshot actual en currentTime
   const snapshot = useMemo(() => engine.query(currentTime), [engine, currentTime]);
@@ -433,7 +476,7 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
               Vista previa sobre lienzo de telemetría
             </span>
             <span className="text-xs text-[#8B9CB0] mt-1 max-w-sm mb-3">
-              Esta sesión no incluye pista de vídeo o el archivo supera el límite de memoria del navegador.
+              Esta sesión no incluye pista de vídeo activa o puedes vincular el archivo de vídeo MP4 original.
             </span>
             <button
               onClick={handleLinkVideoClick}
@@ -445,25 +488,41 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
           </div>
         )}
 
-        {/* Banner de error o aviso por archivo superior a 2 GB */}
+        {/* Banner de error o aviso de vídeo */}
         {videoLoadError && (
           <div className="absolute inset-0 z-20 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
-            <div className="w-12 h-12 rounded-2xl bg-[#FF1744]/20 border border-[#FF1744]/40 flex items-center justify-center text-[#FF1744] mb-3">
-              <AlertTriangle className="w-6 h-6 stroke-[2.2]" />
+            <div className={`w-12 h-12 rounded-2xl ${isExtracting ? 'bg-[#00E5FF]/20 border-[#00E5FF]/40 text-[#00E5FF] animate-pulse' : 'bg-[#FF1744]/20 border-[#FF1744]/40 text-[#FF1744]'} border flex items-center justify-center mb-3`}>
+              {isExtracting ? <Zap className="w-6 h-6 stroke-[2.2] animate-spin" /> : <AlertTriangle className="w-6 h-6 stroke-[2.2]" />}
             </div>
             <h3 className="text-base font-bold text-[#F0F4F8] mb-1">
-              Vídeo bloqueado por límite de memoria del navegador (2 GB)
+              {isExtracting
+                ? 'Extrayendo vídeo en segundo plano...'
+                : isTauriEnvironment()
+                ? 'Vídeo pendiente de vinculación o extracción'
+                : 'Vídeo bloqueado por límite de memoria del navegador (> 1.5 GB)'}
             </h3>
             <p className="text-xs text-[#8B9CB0] max-w-md mb-4 leading-relaxed">
               {videoLoadError}
             </p>
-            <button
-              onClick={handleLinkVideoClick}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#00E5FF] hover:bg-[#00cce6] text-[#090C0E] shadow-[0_0_20px_rgba(0,229,255,0.35)] transition-all cursor-pointer hover:scale-105"
-            >
-              <Film className="w-4 h-4 stroke-[2.5]" />
-              <span>Seleccionar archivo video.mp4 desde tu disco</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {session.videoCompressedInZip && session.videoZipPath && isTauriEnvironment() && (
+                <button
+                  onClick={handleAutoExtractVideo}
+                  disabled={isExtracting}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#00E676] hover:bg-[#00c864] text-[#090C0E] shadow-[0_0_20px_rgba(0,230,118,0.35)] transition-all cursor-pointer hover:scale-105 disabled:opacity-50"
+                >
+                  <Zap className="w-4 h-4 stroke-[2.5]" />
+                  <span>{isExtracting ? 'Extrayendo a disco temporal...' : '⚡ Extraer vídeo automáticamente'}</span>
+                </button>
+              )}
+              <button
+                onClick={handleLinkVideoClick}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#00E5FF] hover:bg-[#00cce6] text-[#090C0E] shadow-[0_0_20px_rgba(0,229,255,0.35)] transition-all cursor-pointer hover:scale-105"
+              >
+                <Film className="w-4 h-4 stroke-[2.5]" />
+                <span>Seleccionar archivo video.mp4 desde tu disco</span>
+              </button>
+            </div>
           </div>
         )}
 

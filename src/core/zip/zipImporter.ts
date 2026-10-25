@@ -12,8 +12,10 @@ import { parseTelemetryCsv } from '../csv/csvParser';
 import {
   isTauriEnvironment,
   inspectNativeZipSession,
-  createZipStoredVideoSource,
+  createTauriFileSource,
+  extractNativeZipVideoToTemp,
 } from '../fs/fileSystemAdapter';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 export interface ImportProgressCallback {
   (step: string, percentage: number): void;
@@ -199,12 +201,18 @@ export async function importSessionZip(
   zipInput: ZipInputSource,
   onProgress?: ImportProgressCallback
 ): Promise<SessionBundle> {
-  const isNativePath =
+  let isNativePath =
     typeof zipInput === 'string' ||
     (typeof zipInput === 'object' && zipInput !== null && 'nativeZipPath' in zipInput);
 
+  let zipPath = typeof zipInput === 'string' ? zipInput : (zipInput as any)?.nativeZipPath;
+
+  if (!isNativePath && isTauriEnvironment() && zipInput instanceof File && (zipInput as any).path) {
+    isNativePath = true;
+    zipPath = (zipInput as any).path;
+  }
+
   if (isNativePath && isTauriEnvironment()) {
-    const zipPath = typeof zipInput === 'string' ? zipInput : (zipInput as any).nativeZipPath;
     onProgress?.('Inspeccionando sesión nativamente en Rust...', 10);
 
     const inspection = await inspectNativeZipSession(zipPath);
@@ -234,7 +242,7 @@ export async function importSessionZip(
 
     const vehicleConfigWithOrigin = resolveVehicleConfig(metadata);
 
-    onProgress?.('Parseando CSV y normalizando señales...', 60);
+    onProgress?.('Parseando CSV y normalizando señales...', 40);
     const csvResult = parseTelemetryCsv(rawCsvText);
     const points = csvResult.points;
     const timeRange = csvResult.timeRange;
@@ -247,22 +255,30 @@ export async function importSessionZip(
     let videoCompressedInZip = false;
     let videoZipPath: string | undefined = undefined;
     let videoLoadWarning: string | undefined = undefined;
+    let videoUrl: string | undefined = undefined;
+    let videoPath: string | undefined = undefined;
 
     if (inspection.video_entry) {
       hasVideo = true;
       videoFileName = inspection.video_entry.entry_name;
-      if (inspection.video_entry.is_stored) {
-        videoStoredInZip = true;
-        videoSource = createZipStoredVideoSource(
-          zipPath,
-          inspection.video_entry.data_offset,
-          inspection.video_entry.size
-        );
-      } else {
+      videoZipPath = zipPath;
+
+      onProgress?.('Extrayendo vídeo de sesión a almacenamiento temporal...', 60);
+      try {
+        const tempVideoPath = await extractNativeZipVideoToTemp(zipPath, inspection.video_entry.entry_name);
+        const tauriSource = createTauriFileSource(tempVideoPath, inspection.video_entry.size);
+        const assetUrl = convertFileSrc(tempVideoPath);
+
+        videoPath = tempVideoPath;
+        videoUrl = assetUrl;
+        videoSource = tauriSource;
+        videoStoredInZip = false;
+        videoCompressedInZip = false;
+      } catch (err) {
+        console.warn('Error al extraer vídeo a disco temporal:', err);
         videoCompressedInZip = true;
-        videoZipPath = zipPath;
         videoLoadWarning =
-          'El vídeo dentro del archivo ZIP está comprimido con DEFLATE. Para reproducción y renderizado con memoria acotada instantánea, puedes vincular el archivo de vídeo suelto desde disco.';
+          'No se pudo extraer automáticamente el vídeo del ZIP. Puedes vincular el archivo de vídeo suelto desde tu disco.';
       }
     } else if (metadata?.video_synchronization?.has_video) {
       hasVideo = true;
@@ -314,6 +330,8 @@ export async function importSessionZip(
       totalPoints: points.length,
       hasVideo,
       videoFileName,
+      videoUrl,
+      videoPath,
       videoSource,
       videoStoredInZip,
       videoCompressedInZip,

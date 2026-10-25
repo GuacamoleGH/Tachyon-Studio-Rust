@@ -284,7 +284,19 @@ mod commands {
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("extracted_video.mp4");
-        let target_path = temp_dir.join(format!("tachyon_stream_{}", sanitized_name));
+        let zip_stem = Path::new(&zip_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("session");
+        let target_path = temp_dir.join(format!("tachyon_{}_{}_{}", zip_stem, entry.size(), sanitized_name));
+
+        if target_path.exists() {
+            if let Ok(meta) = std::fs::metadata(&target_path) {
+                if meta.len() == entry.size() && meta.len() > 0 {
+                    return Ok(target_path.to_string_lossy().to_string());
+                }
+            }
+        }
 
         let mut out_file = OpenOptions::new()
             .write(true)

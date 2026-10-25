@@ -22,13 +22,18 @@ export const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleProcessFile = async (file: ZipInputSource) => {
+    let source = file;
+    if (isTauriEnvironment() && file instanceof File && (file as any).path) {
+      source = { nativeZipPath: (file as any).path };
+    }
+
     setIsLoading(true);
     setError(null);
     setProgressPercent(5);
     setProgressText('Iniciando lectura de la sesión...');
 
     try {
-      const bundle = await importSessionZip(file, (step, pct) => {
+      const bundle = await importSessionZip(source, (step, pct) => {
         setProgressText(step);
         setProgressPercent(pct);
       });

@@ -1,5 +1,19 @@
-import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4ArrayBufferTarget, FileSystemWritableFileStreamTarget as Mp4FileSystemTarget } from 'mp4-muxer';
-import { Muxer as WebmMuxer, ArrayBufferTarget as WebmArrayBufferTarget, FileSystemWritableFileStreamTarget as WebmFileSystemTarget } from 'webm-muxer';
+import {
+  Input,
+  Output,
+  BlobSource,
+  StreamTarget,
+  BufferTarget,
+  Mp4OutputFormat,
+  WebMOutputFormat,
+  CanvasSource,
+  VideoSampleSink,
+  EncodedPacketSink,
+  EncodedAudioPacketSource,
+  EncodedPacket,
+  ALL_FORMATS,
+  type Source,
+} from 'mediabunny';
 import { OverlayRenderer } from '../canvas/overlayRenderer';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { VehicleProfile } from '../../core/profile/vehicleProfile';
@@ -28,9 +42,11 @@ export interface VideoExporterOptions {
   fps: number;
   width: number;
   height: number;
-  bitrate?: number; // en bits por segundo, e.g. 10_000_000
+  bitrate?: number; // bits por segundo, e.g. 12_000_000
   videoSourceElement?: HTMLVideoElement | null;
   videoBlob?: Blob;
+  videoFile?: File | Blob;
+  customSource?: Source;
   useFileSystemAccess?: boolean;
   onProgress?: (p: ExportProgress) => void;
   cancellationToken?: { isCancelled: boolean };
@@ -44,7 +60,7 @@ export interface ExportResult {
 }
 
 /**
- * Comprueba si el navegador actual soporta WebCodecs VideoEncoder.
+ * Comprueba si el entorno actual soporta WebCodecs VideoEncoder.
  */
 export function isWebCodecsSupported(): boolean {
   return typeof window !== 'undefined' && typeof (window as any).VideoEncoder !== 'undefined';
@@ -58,12 +74,14 @@ export function isFileSystemAccessSupported(): boolean {
 }
 
 /**
- * Exportador de vídeo y overlay acelerado por hardware mediante WebCodecs y Muxer.
+ * Exportador de vídeo y telemetría de alto rendimiento con memoria acotada.
+ * Utiliza Mediabunny y WebCodecs para:
+ * 1. Decodificación secuencial determinista sin seeks por frame.
+ * 2. Muxing y escritura en streaming sin retención masiva en RAM (fastStart: false).
+ * 3. Preservación del audio original (AAC passthrough) sin recodificar.
+ * 4. Contrapresión continua y liberación inmediata de VideoFrame/VideoSample.
  */
 export class VideoExporter {
-  /**
-   * Renderiza y codifica el vídeo con overlay o la pista de overlay transparente.
-   */
   public static async exportVideo(
     engine: TimeEngine,
     renderer: OverlayRenderer,
@@ -73,7 +91,7 @@ export class VideoExporter {
   ): Promise<ExportResult> {
     if (!isWebCodecsSupported()) {
       throw new Error(
-        'Tu navegador no soporta WebCodecs (VideoEncoder). Utiliza Google Chrome o Microsoft Edge actualizados.'
+        'El sistema o navegador actual no soporta WebCodecs (VideoEncoder). Asegúrate de contar con WebView2 o Chrome/Edge actualizado.'
       );
     }
 
@@ -85,6 +103,9 @@ export class VideoExporter {
       width,
       height,
       bitrate = 12_000_000,
+      videoBlob,
+      videoFile,
+      customSource,
       videoSourceElement,
       useFileSystemAccess = false,
       onProgress,
@@ -94,6 +115,8 @@ export class VideoExporter {
     const durationSec = Math.max(0.1, endSec - startSec);
     const totalFrames = Math.max(1, Math.round(durationSec * fps));
     const isWebm = mode === 'webm_telemetry' || mode === 'webm_transparent';
+    const isAlphaMode = mode === 'webm_transparent';
+    const isCombined = mode === 'mp4_combined';
 
     onProgress?.({
       percent: 0,
@@ -101,10 +124,10 @@ export class VideoExporter {
       totalFrames,
       fpsEncoding: 0,
       etaSec: 0,
-      status: 'Configurando codificador por hardware y archivo de salida...',
+      status: 'Inicializando pipeline de vídeo en streaming con Mediabunny...',
     });
 
-    // 1. Configurar archivo de salida (Streaming a disco o Buffer en memoria)
+    // 1. Configurar archivo de salida (Streaming con File System Access API o Buffer en memoria)
     let fileHandle: any = null;
     let writableStream: any = null;
     let fileSavedDirectly = false;
@@ -114,7 +137,7 @@ export class VideoExporter {
         const fileExt = isWebm ? 'webm' : 'mp4';
         const fileMime = isWebm ? 'video/webm' : 'video/mp4';
         fileHandle = await (window as any).showSaveFilePicker({
-          suggestedName: `tachyon_${mode}_${width}p_${Math.round(startSec)}-${Math.round(endSec)}s.${fileExt}`,
+          suggestedName: `tachyon_${mode}_${height}p_${Math.round(startSec)}-${Math.round(endSec)}s.${fileExt}`,
           types: [
             {
               description: isWebm ? 'Vídeo WebM' : 'Vídeo MP4 con telemetría',
@@ -128,242 +151,270 @@ export class VideoExporter {
         if (e.name === 'AbortError') {
           throw new Error('Exportación cancelada por el usuario al elegir archivo.');
         }
-        console.warn('No se pudo abrir FileSystemWritableStream, recurriendo a descarga en memoria:', e);
+        console.warn('No se pudo abrir FileSystemWritableStream, recurriendo a búfer en memoria:', e);
       }
     }
 
-    // 2. Instanciar Muxer correspondiente
-    let mp4Muxer: Mp4Muxer<any> | null = null;
-    let webmMuxer: WebmMuxer<any> | null = null;
+    // 2. Configurar Target de Mediabunny (Streaming sin saturar RAM)
+    const target = writableStream
+      ? new StreamTarget(writableStream)
+      : new BufferTarget();
 
-    if (isWebm) {
-      const target = writableStream
-        ? new WebmFileSystemTarget(writableStream)
-        : new WebmArrayBufferTarget();
+    // 3. Configurar formato de salida (fastStart: false para evitar acumular todo el vídeo en RAM)
+    const outputFormat = isWebm
+      ? new WebMOutputFormat()
+      : new Mp4OutputFormat({ fastStart: false });
 
-      webmMuxer = new WebmMuxer({
-        target,
-        video: {
-          codec: 'V_VP9',
-          width,
-          height,
-        },
-      });
-    } else {
-      const target = writableStream
-        ? new Mp4FileSystemTarget(writableStream)
-        : new Mp4ArrayBufferTarget();
-
-      mp4Muxer = new Mp4Muxer({
-        target,
-        video: {
-          codec: 'avc',
-          width,
-          height,
-        },
-        fastStart: 'in-memory',
-      });
-    }
-
-    // 3. Configurar VideoEncoder de WebCodecs
-    const VideoEncoderClass = (window as any).VideoEncoder;
-    let videoEncoder: any = null;
-    let encoderError: Error | null = null;
-
-    const encoderConfig: any = isWebm
-      ? {
-          codec: 'vp09.00.10.08',
-          width,
-          height,
-          bitrate,
-          framerate: fps,
-        }
-      : {
-          codec: 'avc1.640028', // H.264 High Profile Level 4.0
-          width,
-          height,
-          bitrate,
-          framerate: fps,
-        };
-
-    const isSupported = await VideoEncoderClass.isConfigSupported(encoderConfig);
-    if (!isSupported.supported) {
-      // Fallback a Baseline profile si High profile no está soportado en la GPU
-      if (!isWebm) {
-        encoderConfig.codec = 'avc1.42001f';
-      }
-    }
-
-    videoEncoder = new VideoEncoderClass({
-      output: (chunk: any, meta: any) => {
-        if (isWebm && webmMuxer) {
-          webmMuxer.addVideoChunk(chunk, meta);
-        } else if (mp4Muxer) {
-          mp4Muxer.addVideoChunk(chunk, meta);
-        }
-      },
-      error: (e: any) => {
-        console.error('Error en VideoEncoder:', e);
-        encoderError = e instanceof Error ? e : new Error(e?.message || String(e));
-      },
+    const output = new Output({
+      format: outputFormat,
+      target,
     });
 
-    try {
-      videoEncoder.configure(encoderConfig);
-    } catch (err: any) {
-      throw new Error(
-        `Error al configurar el codificador de vídeo (${encoderConfig.codec}): ${err?.message || err}`
-      );
+    // 4. Preparar lienzo de renderizado (OffscreenCanvas si está disponible, o Canvas de DOM)
+    let canvas: HTMLCanvasElement | OffscreenCanvas;
+    let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
+    if (typeof OffscreenCanvas !== 'undefined') {
+      canvas = new OffscreenCanvas(width, height);
+      ctx = canvas.getContext('2d', { alpha: isAlphaMode }) as OffscreenCanvasRenderingContext2D;
+    } else {
+      canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      ctx = canvas.getContext('2d', { alpha: isAlphaMode }) as CanvasRenderingContext2D;
     }
 
-    // 4. Canvas de renderizado fuera de pantalla (OffscreenCanvas si está disponible)
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-
-    // Adaptar escala del renderizador al tamaño de exportación
     renderer.resize(width, height);
 
-    const VideoFrameClass = (window as any).VideoFrame;
-    const startTimeReal = performance.now();
+    // 5. Configurar pista de vídeo de salida en Mediabunny
+    const canvasSource = new CanvasSource(canvas, {
+      codec: isWebm ? 'vp9' : 'avc',
+      bitrate,
+      keyFrameInterval: 2,
+      alpha: isAlphaMode ? 'keep' : 'discard',
+    });
+    output.addVideoTrack(canvasSource);
 
-    // 5. Bucle cuadro a cuadro determinista
-    for (let frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
-      if (cancellationToken?.isCancelled) {
-        try { videoEncoder.close(); } catch (_) {}
-        if (writableStream) await writableStream.abort();
-        throw new Error('Renderizado cancelado por el usuario.');
-      }
+    // 6. Configurar fuente de entrada de vídeo y audio si el modo es combinado
+    const inputBlob = customSource ? null : (videoBlob || (videoFile as Blob));
+    let input: Input | null = null;
+    let videoSink: VideoSampleSink | null = null;
+    let audioTrack: any = null;
+    let audioSource: EncodedAudioPacketSource | null = null;
+    let inputVideoDuration = 0;
 
-      if (encoderError) {
-        throw encoderError;
-      }
-
-      if (videoEncoder.state !== 'configured') {
-        throw new Error(
-          `El codificador de vídeo no está disponible (estado: ${videoEncoder.state}). Intenta exportar en resolución 1080p o cambiar de formato.`
-        );
-      }
-
-      const t = startSec + frameIdx * (1 / fps);
-
-      // Limpiar lienzo
-      ctx.clearRect(0, 0, width, height);
-
-      // Establecer fondo según el modo elegido
-      if (mode === 'mp4_combined' && videoSourceElement) {
-        if (t >= 0 && t <= videoSourceElement.duration) {
-          await seekVideoTo(videoSourceElement, t);
-          ctx.drawImage(videoSourceElement, 0, 0, width, height);
-        } else {
-          // Fondo negro si t está en offset negativo o fuera del vídeo
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, width, height);
-        }
-      } else if (mode === 'mp4_chroma_green') {
-        // Fondo verde croma puro (#00FF00) para eliminar con 1 clic en Premiere o DaVinci (Ultra Key)
-        ctx.fillStyle = '#00FF00';
-        ctx.fillRect(0, 0, width, height);
-      } else {
-        // Fondo negro puro para modo telemetría (se hace transparente con modo de fusión 'Pantalla' / 'Screen')
-        ctx.fillStyle = '#090C0E';
-        ctx.fillRect(0, 0, width, height);
-      }
-
-      // Dibujar overlay de telemetría determinista en el instante t
-      const snap = engine.query(t);
-      renderer.render(ctx, snap, profile, t, allPoints);
-
-      // Crear VideoFrame de WebCodecs con timestamp en microsegundos
-      const timestampMicros = Math.round(frameIdx * (1_000_000 / fps));
-      const videoFrame = new VideoFrameClass(canvas, {
-        timestamp: timestampMicros,
-        duration: Math.round(1_000_000 / fps),
+    if (isCombined && (inputBlob || customSource)) {
+      const sourceInstance = customSource || new BlobSource(inputBlob!);
+      input = new Input({
+        source: sourceInstance,
+        formats: ALL_FORMATS,
       });
 
-      // Insertar keyframe cada 2 segundos
-      const isKeyFrame = frameIdx % (fps * 2) === 0;
-      videoEncoder.encode(videoFrame, { keyFrame: isKeyFrame });
-      videoFrame.close();
-
-      // Control de contrapresión de codificación (evita acumular fotogramas en cola)
-      if (videoEncoder.encodeQueueSize > 4) {
-        await new Promise((r) => setTimeout(r, 10));
+      const videoTrack = await input.getPrimaryVideoTrack();
+      if (videoTrack) {
+        inputVideoDuration = await videoTrack.computeDuration().catch(() => 0);
+        videoSink = new VideoSampleSink(videoTrack);
       }
 
-      // Notificar progreso periódico
-      if (frameIdx % 10 === 0 || frameIdx === totalFrames - 1) {
-        const elapsedSec = (performance.now() - startTimeReal) / 1000;
-        const currentFps = elapsedSec > 0 ? (frameIdx + 1) / elapsedSec : 0;
-        const remainingFrames = totalFrames - (frameIdx + 1);
-        const etaSec = currentFps > 0 ? remainingFrames / currentFps : 0;
-
-        onProgress?.({
-          percent: Math.round(((frameIdx + 1) / totalFrames) * 100),
-          currentFrame: frameIdx + 1,
-          totalFrames,
-          fpsEncoding: Math.round(currentFps * 10) / 10,
-          etaSec: Math.round(etaSec),
-          status: `Codificando cuadro ${frameIdx + 1} de ${totalFrames}...`,
-        });
+      // Preparar audio original para passthrough (sin recodificar)
+      audioTrack = await input.getPrimaryAudioTrack();
+      if (audioTrack && !isWebm) {
+        try {
+          const audioCodec = await audioTrack.getCodec();
+          if (audioCodec) {
+            audioSource = new EncodedAudioPacketSource(audioCodec);
+            output.addAudioTrack(audioSource);
+          }
+        } catch (err) {
+          console.warn('No se pudo inicializar la pista de audio passthrough:', err);
+        }
       }
     }
 
-    // 6. Finalizar codificación y muxer
-    onProgress?.({
-      percent: 99,
-      currentFrame: totalFrames,
-      totalFrames,
-      fpsEncoding: 0,
-      etaSec: 0,
-      status: 'Finalizando archivo y cerrando contenedor...',
-    });
+    // 7. Iniciar el multiplexor de salida
+    await output.start();
 
-    await videoEncoder.flush();
-    videoEncoder.close();
+    // 8. Transferir audio original en segundo plano (streaming de paquetes de audio)
+    let audioTransferPromise: Promise<void> = Promise.resolve();
+    if (audioTrack && audioSource) {
+      audioTransferPromise = (async () => {
+        try {
+          const audioSink = new EncodedPacketSink(audioTrack);
+          const audioConfig = await audioTrack.getDecoderConfig();
+          let isFirst = true;
 
-    let outputBlob: Blob | undefined;
+          for await (const packet of audioSink.packets()) {
+            if (cancellationToken?.isCancelled) break;
 
-    if (isWebm && webmMuxer) {
-      webmMuxer.finalize();
-      if (!writableStream) {
-        const buffer = (webmMuxer.target as WebmArrayBufferTarget).buffer;
-        outputBlob = new Blob([buffer], { type: 'video/webm' });
-      }
-    } else if (mp4Muxer) {
-      mp4Muxer.finalize();
-      if (!writableStream) {
-        const buffer = (mp4Muxer.target as Mp4ArrayBufferTarget).buffer;
-        outputBlob = new Blob([buffer], { type: 'video/mp4' });
-      }
+            const packetEnd = packet.timestamp + packet.duration;
+            if (packetEnd < startSec) continue;
+            if (packet.timestamp > endSec) break;
+
+            const adjustedTimestamp = Math.max(0, packet.timestamp - startSec);
+            const shiftedPacket = new EncodedPacket(
+              packet.data,
+              packet.type,
+              adjustedTimestamp,
+              packet.duration,
+              packet.sequenceNumber,
+              packet.byteLength,
+              packet.sideData
+            );
+
+            if (isFirst && audioConfig) {
+              await audioSource.add(shiftedPacket, { decoderConfig: audioConfig });
+              isFirst = false;
+            } else {
+              await audioSource.add(shiftedPacket);
+            }
+          }
+        } catch (audioErr) {
+          console.warn('Advertencia durante la copia de paquetes de audio original:', audioErr);
+        }
+      })();
     }
 
-    if (writableStream) {
-      await writableStream.close();
+    // 9. Bucle determinista de renderizado de fotogramas
+    const startTimeReal = performance.now();
+    const frameDuration = 1 / fps;
+    const tolerance = 0.5 * frameDuration; // Margen de medio frame para absorber imprecisiones flotantes
+
+    try {
+      for (let frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
+        if (cancellationToken?.isCancelled) {
+          await output.cancel();
+          if (writableStream) await writableStream.abort().catch(() => {});
+          input?.dispose();
+          throw new Error('Renderizado cancelado por el usuario.');
+        }
+
+        const t = startSec + frameIdx * frameDuration;
+        const outTimestampSec = frameIdx * frameDuration;
+
+        // Limpiar lienzo
+        ctx.clearRect(0, 0, width, height);
+
+        // Fondo y decodificación de vídeo
+        if (isCombined) {
+          if (videoSink && t >= 0 && (inputVideoDuration === 0 || t <= inputVideoDuration + tolerance)) {
+            // Decodificación de fotograma con verificación determinista
+            const sample = await videoSink.getSample(t);
+            if (sample) {
+              const sampleStart = sample.timestamp;
+              const sampleEnd = sample.timestamp + (sample.duration || frameDuration);
+
+              // Verificación estricta: el fotograma devuelto debe corresponder al instante pedido
+              if (t < sampleStart - tolerance || t > sampleEnd + tolerance) {
+                sample.close();
+                throw new Error(
+                  `Desincronización en decodificación: el fotograma devuelto (timestamp: ${sampleStart.toFixed(3)}s) ` +
+                  `no cubre el instante requerido t=${t.toFixed(3)}s (esperado en rango [${(sampleStart - tolerance).toFixed(3)}, ${(sampleEnd + tolerance).toFixed(3)}]).`
+                );
+              }
+
+              sample.draw(ctx as any, 0, 0, width, height);
+              sample.close();
+            } else {
+              // Si no hay muestra en este instante (ej. t previo al primer frame), dibujar fondo negro
+              ctx.fillStyle = '#000000';
+              ctx.fillRect(0, 0, width, height);
+            }
+          } else if (videoSourceElement && t >= 0 && t <= videoSourceElement.duration) {
+            // Fallback para elementos de vídeo del navegador si no hay blob
+            await seekVideoTo(videoSourceElement, t);
+            (ctx as CanvasRenderingContext2D).drawImage(videoSourceElement, 0, 0, width, height);
+          } else {
+            // Fuera de límites de duración o t < 0: fondo negro determinista
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+          }
+        } else if (mode === 'mp4_chroma_green') {
+          // Fondo verde croma puro (#00FF00) para keying en editores NLE
+          ctx.fillStyle = '#00FF00';
+          ctx.fillRect(0, 0, width, height);
+        } else if (!isAlphaMode) {
+          // Fondo oscuro para modo telemetría estándar
+          ctx.fillStyle = '#090C0E';
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        // Dibujar el instrumental vectorial y overlays en el instante t exacto
+        const snap = engine.query(t);
+        renderer.render(ctx as any, snap, profile, t, allPoints);
+
+        // Añadir muestra al canal de salida con contrapresión automática integrada
+        await canvasSource.add(outTimestampSec, frameDuration);
+
+        // Notificar progreso periódico
+        if (frameIdx % 10 === 0 || frameIdx === totalFrames - 1) {
+          const elapsedSec = (performance.now() - startTimeReal) / 1000;
+          const currentFps = elapsedSec > 0 ? (frameIdx + 1) / elapsedSec : 0;
+          const remainingFrames = totalFrames - (frameIdx + 1);
+          const etaSec = currentFps > 0 ? remainingFrames / currentFps : 0;
+
+          onProgress?.({
+            percent: Math.round(((frameIdx + 1) / totalFrames) * 100),
+            currentFrame: frameIdx + 1,
+            totalFrames,
+            fpsEncoding: Math.round(currentFps * 10) / 10,
+            etaSec: Math.round(etaSec),
+            status: `Renderizando cuadro ${frameIdx + 1} de ${totalFrames}...`,
+          });
+        }
+      }
+
+      // 10. Esperar que finalice la copia de paquetes de audio
+      await audioTransferPromise;
+
+      onProgress?.({
+        percent: 99,
+        currentFrame: totalFrames,
+        totalFrames,
+        fpsEncoding: 0,
+        etaSec: 0,
+        status: 'Finalizando contenedor y escribiendo metadata en streaming...',
+      });
+
+      // 11. Finalizar salida
+      await output.finalize();
+      input?.dispose();
+
+      let outputBlob: Blob | undefined;
+      if (!writableStream && target instanceof BufferTarget && target.buffer) {
+        outputBlob = new Blob([target.buffer], { type: isWebm ? 'video/webm' : 'video/mp4' });
+      }
+
+      onProgress?.({
+        percent: 100,
+        currentFrame: totalFrames,
+        totalFrames,
+        fpsEncoding: 0,
+        etaSec: 0,
+        status: '¡Renderizado completado con éxito!',
+      });
+
+      return {
+        blob: outputBlob,
+        fileSavedDirectly,
+        durationSec,
+        totalFramesEncoded: totalFrames,
+      };
+    } catch (err) {
+      try { await output.cancel(); } catch (_) {}
+      try { input?.dispose(); } catch (_) {}
+      if (writableStream) {
+        try { await writableStream.abort(); } catch (_) {}
+      }
+      throw err;
     }
-
-    onProgress?.({
-      percent: 100,
-      currentFrame: totalFrames,
-      totalFrames,
-      fpsEncoding: 0,
-      etaSec: 0,
-      status: '¡Renderizado completado con éxito!',
-    });
-
-    return {
-      blob: outputBlob,
-      fileSavedDirectly,
-      durationSec,
-      totalFramesEncoded: totalFrames,
-    };
   }
 }
 
+/**
+ * Fallback auxiliar para elementos de vídeo HTML5 cuando no se dispone de blob de archivo.
+ */
 function seekVideoTo(video: HTMLVideoElement, time: number): Promise<void> {
   return new Promise((resolve) => {
-    // Si el tiempo solicitado es prácticamente el actual (menos de 2ms de diferencia)
     if (Math.abs(video.currentTime - time) < 0.002 && !video.seeking) {
       resolve();
       return;
@@ -376,7 +427,7 @@ function seekVideoTo(video: HTMLVideoElement, time: number): Promise<void> {
         video.removeEventListener('seeked', onSeeked);
         resolve();
       }
-    }, 250); // Timeout protector de 250ms por frame para garantizar render sin bloqueos
+    }, 250);
 
     const onSeeked = () => {
       if (!finished) {

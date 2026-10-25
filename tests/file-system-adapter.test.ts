@@ -3,6 +3,8 @@ import {
   isTauriEnvironment,
   createTauriFileSource,
   createZipStoredVideoSource,
+  detectFfmpegCapabilities,
+  runFfmpegCommand,
 } from '../src/core/fs/fileSystemAdapter';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -87,5 +89,54 @@ describe('FileSystemAdapter & Tauri File Layer', () => {
       offset: 1048676,
       length: 4,
     });
+  });
+
+  it('detectFfmpegCapabilities devuelve capacidades detectadas en Tauri o fallback seguro en Web', async () => {
+    // 1. En entorno web (sin __TAURI_INTERNALS__)
+    delete (globalThis as any).__TAURI_INTERNALS__;
+    const webCaps = await detectFfmpegCapabilities();
+    expect(webCaps.available).toBe(false);
+
+    // 2. En entorno Tauri
+    (globalThis as any).__TAURI_INTERNALS__ = {};
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'detect_ffmpeg') {
+        return {
+          available: true,
+          path: 'C:\\tools\\ffmpeg.exe',
+          version: 'ffmpeg version 9.0.1',
+          has_nvenc: true,
+          has_qsv: false,
+          has_amf: false,
+          has_libx264: true,
+          recommended_encoder: 'h264_nvenc',
+        };
+      }
+      return null;
+    });
+
+    const tauriCaps = await detectFfmpegCapabilities();
+    expect(tauriCaps.available).toBe(true);
+    expect(tauriCaps.has_nvenc).toBe(true);
+    expect(tauriCaps.recommended_encoder).toBe('h264_nvenc');
+    expect(invoke).toHaveBeenCalledWith('detect_ffmpeg');
+
+    delete (globalThis as any).__TAURI_INTERNALS__;
+  });
+
+  it('runFfmpegCommand invoca el comando nativo en Tauri y lanza error en entorno web', async () => {
+    // En entorno web
+    delete (globalThis as any).__TAURI_INTERNALS__;
+    await expect(runFfmpegCommand(['-version'])).rejects.toThrow('solo está disponible');
+
+    // En entorno Tauri
+    (globalThis as any).__TAURI_INTERNALS__ = {};
+    vi.mocked(invoke).mockResolvedValue('ffmpeg version 9.0.1');
+
+    const result = await runFfmpegCommand(['-version']);
+    expect(result).toBe('ffmpeg version 9.0.1');
+    expect(invoke).toHaveBeenCalledWith('run_ffmpeg_command', { args: ['-version'] });
+
+    delete (globalThis as any).__TAURI_INTERNALS__;
   });
 });

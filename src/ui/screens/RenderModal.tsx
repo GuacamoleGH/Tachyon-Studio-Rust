@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Film,
@@ -11,6 +11,7 @@ import {
   StopCircle,
   Clock,
   Gauge,
+  Zap,
 } from 'lucide-react';
 import { SessionBundle } from '../../core/model/session';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
@@ -27,6 +28,8 @@ import {
 import {
   isTauriEnvironment,
   createSaveVideoWriter,
+  detectFfmpegCapabilities,
+  type FfmpegCapabilities,
 } from '../../core/fs/fileSystemAdapter';
 
 interface RenderModalProps {
@@ -70,6 +73,17 @@ export const RenderModal: React.FC<RenderModalProps> = ({
   const hasFSA = isFileSystemAccessSupported();
   const supportsStreaming = isTauri || hasFSA;
   const [useStreaming, setUseStreaming] = useState<boolean>(supportsStreaming);
+  const [ffmpegCaps, setFfmpegCaps] = useState<FfmpegCapabilities | null>(null);
+
+  useEffect(() => {
+    if (isTauri) {
+      detectFfmpegCapabilities()
+        .then((caps) => {
+          if (caps.available) setFfmpegCaps(caps);
+        })
+        .catch(() => {});
+    }
+  }, [isTauri]);
 
   // Estado del proceso de renderizado
   const [isRendering, setIsRendering] = useState<boolean>(false);
@@ -585,6 +599,32 @@ export const RenderModal: React.FC<RenderModalProps> = ({
                     onChange={(e) => setUseStreaming(e.target.checked)}
                     className="w-4 h-4 accent-[#00E676] cursor-pointer"
                   />
+                </div>
+              )}
+
+              {/* 5. Aceleración por Hardware / FFmpeg Sidecar */}
+              {ffmpegCaps?.available && (
+                <div className="bg-[#1A222B] p-3 rounded-xl border border-[#00E676]/30 flex items-center justify-between animate-fadeIn">
+                  <div className="flex items-center gap-2.5">
+                    <Zap className="w-4 h-4 text-[#00E676]" />
+                    <div>
+                      <span className="text-[#F0F4F8] font-bold block flex items-center gap-2">
+                        <span>Sidecar FFmpeg Activo</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#00E676]/20 text-[#00E676] font-mono font-bold">
+                          {ffmpegCaps.recommended_encoder || 'GPU/CPU'}
+                        </span>
+                      </span>
+                      <span className="text-[#8B9CB0] text-[11px]">
+                        {ffmpegCaps.has_nvenc
+                          ? 'Acelerador NVIDIA NVENC detectado para codificación por hardware.'
+                          : ffmpegCaps.has_qsv
+                          ? 'Acelerador Intel QuickSync (QSV) detectado para codificación por hardware.'
+                          : ffmpegCaps.has_amf
+                          ? 'Acelerador AMD AMF detectado para codificación por hardware.'
+                          : 'Procesamiento complementario FFmpeg disponible para remux y audio.'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

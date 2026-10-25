@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 use tauri::State;
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 #[derive(Default)]
 pub struct StreamWriterState {
@@ -35,6 +38,73 @@ pub struct FileInfo {
     pub exists: bool,
     pub size: u64,
     pub is_file: bool,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct FfmpegCapabilities {
+    pub available: bool,
+    pub path: Option<String>,
+    pub version: Option<String>,
+    pub has_nvenc: bool,
+    pub has_qsv: bool,
+    pub has_amf: bool,
+    pub has_libx264: bool,
+    pub recommended_encoder: Option<String>,
+}
+
+fn locate_ffmpeg_executable() -> Option<PathBuf> {
+    // 1. Probar ruta relativa al ejecutable (sidecar empaquetado o carpeta bin/)
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(dir) = exe_path.parent() {
+            let candidates = [
+                dir.join("ffmpeg.exe"),
+                dir.join("bin").join("ffmpeg.exe"),
+                dir.join("binaries").join("ffmpeg.exe"),
+                dir.join("binaries").join("ffmpeg-x86_64-pc-windows-msvc.exe"),
+            ];
+            for c in candidates {
+                if c.exists() {
+                    return Some(c);
+                }
+            }
+        }
+    }
+
+    // 2. Probar ruta de WinGet en el perfil de usuario de Windows
+    if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+        let winget_link = Path::new(&local_appdata)
+            .join("Microsoft")
+            .join("WinGet")
+            .join("Links")
+            .join("ffmpeg.exe");
+        if winget_link.exists() {
+            return Some(winget_link);
+        }
+    }
+
+    // 3. Probar ejecutable en PATH
+    #[cfg(windows)]
+    let mut check_cmd = std::process::Command::new("where");
+    #[cfg(not(windows))]
+    let mut check_cmd = std::process::Command::new("which");
+
+    check_cmd.arg("ffmpeg");
+    #[cfg(windows)]
+    check_cmd.creation_flags(0x08000000);
+
+    if let Ok(output) = check_cmd.output() {
+        if output.status.success() {
+            let out_str = String::from_utf8_lossy(&output.stdout);
+            if let Some(first_line) = out_str.lines().next() {
+                let p = Path::new(first_line.trim());
+                if p.exists() {
+                    return Some(p.to_path_buf());
+                }
+            }
+        }
+    }
+
+    None
 }
 
 mod commands {
@@ -242,6 +312,99 @@ mod commands {
 
         Ok(target_path.to_string_lossy().to_string())
     }
+
+    #[tauri::command]
+    pub fn detect_ffmpeg() -> FfmpegCapabilities {
+        let ffmpeg_path = match locate_ffmpeg_executable() {
+            Some(p) => p,
+            None => {
+                return FfmpegCapabilities {
+                    available: false,
+                    path: None,
+                    version: None,
+                    has_nvenc: false,
+                    has_qsv: false,
+                    has_amf: false,
+                    has_libx264: false,
+                    recommended_encoder: None,
+                };
+            }
+        };
+
+        let mut ver_cmd = std::process::Command::new(&ffmpeg_path);
+        ver_cmd.arg("-version");
+        #[cfg(windows)]
+        ver_cmd.creation_flags(0x08000000);
+
+        let version = if let Ok(output) = ver_cmd.output() {
+            let out_str = String::from_utf8_lossy(&output.stdout);
+            out_str.lines().next().map(|s| s.to_string())
+        } else {
+            None
+        };
+
+        let mut enc_cmd = std::process::Command::new(&ffmpeg_path);
+        enc_cmd.arg("-encoders");
+        #[cfg(windows)]
+        enc_cmd.creation_flags(0x08000000);
+
+        let (has_nvenc, has_qsv, has_amf, has_libx264) = if let Ok(output) = enc_cmd.output() {
+            let enc_str = String::from_utf8_lossy(&output.stdout);
+            (
+                enc_str.contains("h264_nvenc"),
+                enc_str.contains("h264_qsv"),
+                enc_str.contains("h264_amf"),
+                enc_str.contains("libx264"),
+            )
+        } else {
+            (false, false, false, false)
+        };
+
+        let recommended = if has_nvenc {
+            Some("h264_nvenc".to_string())
+        } else if has_qsv {
+            Some("h264_qsv".to_string())
+        } else if has_amf {
+            Some("h264_amf".to_string())
+        } else if has_libx264 {
+            Some("libx264".to_string())
+        } else {
+            None
+        };
+
+        FfmpegCapabilities {
+            available: true,
+            path: Some(ffmpeg_path.to_string_lossy().to_string()),
+            version,
+            has_nvenc,
+            has_qsv,
+            has_amf,
+            has_libx264,
+            recommended_encoder: recommended,
+        }
+    }
+
+    #[tauri::command]
+    pub fn run_ffmpeg_command(args: Vec<String>) -> Result<String, String> {
+        let ffmpeg_path = locate_ffmpeg_executable()
+            .ok_or_else(|| "FFmpeg no encontrado en el sistema.".to_string())?;
+
+        let mut cmd = std::process::Command::new(&ffmpeg_path);
+        cmd.args(&args);
+        #[cfg(windows)]
+        cmd.creation_flags(0x08000000);
+
+        let output = cmd
+            .output()
+            .map_err(|e| format!("Error ejecutando FFmpeg: {}", e))?;
+        let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+
+        if !output.status.success() {
+            return Err(format!("FFmpeg falló (código {:?}): {}", output.status.code(), stderr_str));
+        }
+
+        Ok(stderr_str)
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -267,6 +430,8 @@ pub fn run() {
             commands::close_stream_writer,
             commands::inspect_zip_session,
             commands::extract_zip_video_to_temp,
+            commands::detect_ffmpeg,
+            commands::run_ffmpeg_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

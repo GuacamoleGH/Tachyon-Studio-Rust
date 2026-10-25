@@ -13,6 +13,17 @@ export interface NativeFileInfo {
   is_file: boolean;
 }
 
+export interface FfmpegCapabilities {
+  available: boolean;
+  path?: string;
+  version?: string;
+  has_nvenc: boolean;
+  has_qsv: boolean;
+  has_amf: boolean;
+  has_libx264: boolean;
+  recommended_encoder?: string;
+}
+
 export interface ZipVideoEntryInfo {
   entry_name: string;
   is_stored: boolean;
@@ -295,6 +306,37 @@ export async function createSaveVideoWriter(
   }
 
   return null;
+}
+
+/**
+ * Detecta si FFmpeg está disponible (en sidecar, WinGet o PATH del sistema)
+ * y qué aceleradores por hardware (NVENC, QSV, AMF) soporta.
+ */
+export async function detectFfmpegCapabilities(): Promise<FfmpegCapabilities> {
+  if (isTauriEnvironment()) {
+    try {
+      return await invoke<FfmpegCapabilities>('detect_ffmpeg');
+    } catch (e) {
+      console.warn('Error detectando FFmpeg nativo:', e);
+    }
+  }
+  return {
+    available: false,
+    has_nvenc: false,
+    has_qsv: false,
+    has_amf: false,
+    has_libx264: false,
+  };
+}
+
+/**
+ * Ejecuta un comando FFmpeg a través del sidecar nativo de Tauri.
+ */
+export async function runFfmpegCommand(args: string[]): Promise<string> {
+  if (!isTauriEnvironment()) {
+    throw new Error('FFmpeg sidecar solo está disponible en el entorno de escritorio nativo (Tauri).');
+  }
+  return await invoke<string>('run_ffmpeg_command', { args });
 }
 
 

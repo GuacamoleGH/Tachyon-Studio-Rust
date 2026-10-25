@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.8.3",
     "fflate": "^0.8.2",
     "lucide-react": "^1.16.0",
     "mediabunny": "^1.62.1",
@@ -21,8 +22,8 @@
     "webm-muxer": "^5.1.4"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0",
     "@tailwindcss/vite": "^4.0.0",
+    "@tauri-apps/cli": "^2.0.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

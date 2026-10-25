@@ -9,6 +9,11 @@ import {
 } from '../model/session';
 import { STANDARD_SIGNALS, StandardSignalKey, TelemetryPoint } from '../model/telemetry';
 import { parseTelemetryCsv } from '../csv/csvParser';
+import {
+  isTauriEnvironment,
+  inspectNativeZipSession,
+  createZipStoredVideoSource,
+} from '../fs/fileSystemAdapter';
 
 export interface ImportProgressCallback {
   (step: string, percentage: number): void;
@@ -179,16 +184,157 @@ async function extractZipEntries(
   });
 }
 
+export type ZipInputSource =
+  | File
+  | Uint8Array
+  | ArrayBuffer
+  | { nativeZipPath: string }
+  | string;
+
 /**
  * Importa y analiza por completo un paquete ZIP de sesión exportado por Tachyon.
+ * Soporta descompresión en streaming para Web y lectura nativa por rangos en Tauri.
  */
 export async function importSessionZip(
-  zipInput: File | Uint8Array | ArrayBuffer,
+  zipInput: ZipInputSource,
   onProgress?: ImportProgressCallback
 ): Promise<SessionBundle> {
+  const isNativePath =
+    typeof zipInput === 'string' ||
+    (typeof zipInput === 'object' && zipInput !== null && 'nativeZipPath' in zipInput);
+
+  if (isNativePath && isTauriEnvironment()) {
+    const zipPath = typeof zipInput === 'string' ? zipInput : (zipInput as any).nativeZipPath;
+    onProgress?.('Inspeccionando sesión nativamente en Rust...', 10);
+
+    const inspection = await inspectNativeZipSession(zipPath);
+    if (!inspection.valid_session) {
+      throw new Error(
+        inspection.error_message ||
+          'El archivo seleccionado no es una sesión válida o no contiene telemetria.csv/session.json.'
+      );
+    }
+
+    const rawCsvText = inspection.telemetria_csv;
+    if (!rawCsvText) {
+      throw new Error('El paquete ZIP no contiene el archivo requerido "telemetria.csv".');
+    }
+
+    const rawJsonText = inspection.session_json;
+    const rawGpxText = inspection.ruta_gpx;
+
+    let metadata: SessionMetadataRaw | undefined;
+    if (rawJsonText) {
+      try {
+        metadata = JSON.parse(rawJsonText);
+      } catch (e) {
+        console.warn('No se pudo parsear session.json:', e);
+      }
+    }
+
+    const vehicleConfigWithOrigin = resolveVehicleConfig(metadata);
+
+    onProgress?.('Parseando CSV y normalizando señales...', 60);
+    const csvResult = parseTelemetryCsv(rawCsvText);
+    const points = csvResult.points;
+    const timeRange = csvResult.timeRange;
+
+    // Vídeo nativo
+    let hasVideo = false;
+    let videoFileName = 'video.mp4';
+    let videoSource: any = undefined;
+    let videoStoredInZip = false;
+    let videoCompressedInZip = false;
+    let videoZipPath: string | undefined = undefined;
+    let videoLoadWarning: string | undefined = undefined;
+
+    if (inspection.video_entry) {
+      hasVideo = true;
+      videoFileName = inspection.video_entry.entry_name;
+      if (inspection.video_entry.is_stored) {
+        videoStoredInZip = true;
+        videoSource = createZipStoredVideoSource(
+          zipPath,
+          inspection.video_entry.data_offset,
+          inspection.video_entry.size
+        );
+      } else {
+        videoCompressedInZip = true;
+        videoZipPath = zipPath;
+        videoLoadWarning =
+          'El vídeo dentro del archivo ZIP está comprimido con DEFLATE. Para reproducción y renderizado con memoria acotada instantánea, puedes vincular el archivo de vídeo suelto desde disco.';
+      }
+    } else if (metadata?.video_synchronization?.has_video) {
+      hasVideo = true;
+    }
+
+    onProgress?.('Analizando frecuencias reales y huecos temporales...', 85);
+    const signalsStats = calculateSignalsStats(points, timeRange, metadata);
+    const events = resolveEvents(metadata, signalsStats);
+
+    const sessionId = metadata?.session?.id || metadata?.session_id || 'sesion-' + Date.now();
+    const title = metadata?.session?.title || metadata?.vehicle?.name || 'Sesión de Telemetría';
+    const startTimeIso =
+      metadata?.session?.start_time_iso ||
+      metadata?.started_utc ||
+      (points[0]?.timestamp_utc_ms
+        ? new Date(points[0].timestamp_utc_ms).toISOString()
+        : new Date().toISOString());
+
+    const totalDurationSec =
+      timeRange.maxSec > timeRange.minSec
+        ? timeRange.maxSec - timeRange.minSec
+        : metadata?.session?.duration_seconds || 0;
+
+    const totalDistance =
+      metadata?.session?.total_distance_meters ||
+      metadata?.stats?.distance_m ||
+      calculateDistanceMeters(points);
+
+    const maxSpeed =
+      metadata?.session?.max_speed_kmh ||
+      metadata?.stats?.max_speed_kmh ||
+      calculateMaxSpeed(points);
+
+    const avgSpeed =
+      metadata?.session?.avg_speed_kmh ||
+      metadata?.stats?.avg_speed_kmh ||
+      (totalDurationSec > 0 ? (totalDistance / 1000) / (totalDurationSec / 3600) : 0);
+
+    onProgress?.('¡Sesión importada correctamente!', 100);
+
+    return {
+      id: sessionId,
+      title,
+      startTimeIso,
+      durationSec: Math.round(totalDurationSec * 100) / 100,
+      totalDistanceMeters: Math.round(totalDistance),
+      maxSpeedKmh: Math.round(maxSpeed * 10) / 10,
+      avgSpeedKmh: Math.round(avgSpeed * 10) / 10,
+      totalPoints: points.length,
+      hasVideo,
+      videoFileName,
+      videoSource,
+      videoStoredInZip,
+      videoCompressedInZip,
+      videoZipPath,
+      videoLoadWarning,
+      rawCsvText,
+      points,
+      timeRange,
+      rawJsonText,
+      metadata,
+      rawGpxText,
+      vehicleConfigWithOrigin,
+      signalsStats,
+      events,
+      csvFormat: csvResult.mappingConfig.detectedFormat,
+    };
+  }
+
   onProgress?.('Iniciando lectura del archivo ZIP...', 10);
 
-  const extracted = await extractZipEntries(zipInput, onProgress);
+  const extracted = await extractZipEntries(zipInput as any, onProgress);
 
   const csvBytes = extracted.csvBytes;
   if (!csvBytes) {

@@ -16,6 +16,7 @@ import { SessionBundle } from '../../core/model/session';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { OverlayRenderer } from '../../engine/canvas/overlayRenderer';
 import { VehicleProfile } from '../../core/profile/vehicleProfile';
+import { StreamTarget } from 'mediabunny';
 import {
   ExportMode,
   ExportProgress,
@@ -23,6 +24,10 @@ import {
   isWebCodecsSupported,
   VideoExporter,
 } from '../../engine/export/videoExporter';
+import {
+  isTauriEnvironment,
+  createSaveVideoWriter,
+} from '../../core/fs/fileSystemAdapter';
 
 interface RenderModalProps {
   isOpen: boolean;
@@ -59,7 +64,12 @@ export const RenderModal: React.FC<RenderModalProps> = ({
     height: 1080,
   });
   const [bitrate, setBitrate] = useState<number>(14_000_000);
-  const [useStreaming, setUseStreaming] = useState<boolean>(isFileSystemAccessSupported());
+
+  const isTauri = isTauriEnvironment();
+  const hasWebCodecs = isWebCodecsSupported();
+  const hasFSA = isFileSystemAccessSupported();
+  const supportsStreaming = isTauri || hasFSA;
+  const [useStreaming, setUseStreaming] = useState<boolean>(supportsStreaming);
 
   // Estado del proceso de renderizado
   const [isRendering, setIsRendering] = useState<boolean>(false);
@@ -73,9 +83,6 @@ export const RenderModal: React.FC<RenderModalProps> = ({
 
   if (!isOpen) return null;
 
-  const hasWebCodecs = isWebCodecsSupported();
-  const hasFSA = isFileSystemAccessSupported();
-
   const handleStartRender = async () => {
     setIsRendering(true);
     setError(null);
@@ -84,6 +91,27 @@ export const RenderModal: React.FC<RenderModalProps> = ({
     cancellationTokenRef.current = { isCancelled: false };
 
     const engine = TimeEngine.fromBundle(session);
+    const isWebm = mode === 'webm_telemetry' || mode === 'webm_transparent';
+    const ext = isWebm ? 'webm' : 'mp4';
+    const suggestedName = `tachyon_${session.title.toLowerCase().replace(/\s+/g, '_')}_${resolution.width}p_${Math.round(startSec)}-${Math.round(endSec)}s.${ext}`;
+
+    let tauriWriter: any = null;
+    let customTarget: StreamTarget | undefined = undefined;
+
+    if (useStreaming && isTauri) {
+      try {
+        tauriWriter = await createSaveVideoWriter(suggestedName, ext);
+        if (!tauriWriter) {
+          setIsRendering(false);
+          return;
+        }
+        customTarget = new StreamTarget(tauriWriter.writable);
+      } catch (e: any) {
+        setIsRendering(false);
+        setError(`Error preparando archivo nativo de salida: ${e?.message || e}`);
+        return;
+      }
+    }
 
     try {
       const res = await VideoExporter.exportVideo(engine, renderer, profile, session.points, {
@@ -96,16 +124,25 @@ export const RenderModal: React.FC<RenderModalProps> = ({
         bitrate,
         videoSourceElement: hiddenVideoRef.current,
         videoBlob: session.videoBlob,
-        useFileSystemAccess: useStreaming && hasFSA,
+        customSource: session.videoSource,
+        customTarget,
+        useFileSystemAccess: useStreaming && !isTauri && hasFSA,
         onProgress: setProgress,
         cancellationToken: cancellationTokenRef.current,
       });
+
+      if (tauriWriter) {
+        await tauriWriter.close();
+      }
 
       if (res.blob) {
         setOutputBlob(res.blob);
       }
       setFileSavedDirectly(res.fileSavedDirectly);
     } catch (err: unknown) {
+      if (tauriWriter) {
+        try { await tauriWriter.abort(); } catch (_) {}
+      }
       if (err instanceof Error && err.message.includes('cancelada')) {
         setProgress(null);
       } else {
@@ -529,13 +566,13 @@ export const RenderModal: React.FC<RenderModalProps> = ({
               </div>
 
               {/* 4. Streaming a disco */}
-              {hasFSA && (
+              {supportsStreaming && (
                 <div className="bg-[#1A222B] p-3 rounded-xl border border-[#2C3947] flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <HardDrive className="w-4 h-4 text-[#00E5FF]" />
                     <div>
                       <span className="text-[#F0F4F8] font-bold block">
-                        Streaming directo a disco (File System Access)
+                        Streaming directo a disco ({isTauri ? 'Nativo Rust' : 'File System Access'})
                       </span>
                       <span className="text-[#8B9CB0] text-[11px]">
                         Escribe los fotogramas directamente al almacenamiento evitando acumular datos en RAM.

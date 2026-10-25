@@ -119,6 +119,11 @@ export interface SessionBundle {
   videoFileName?: string;
   videoBlob?: Blob;
   videoUrl?: string;
+  videoPath?: string;
+  videoSource?: any;
+  videoStoredInZip?: boolean;
+  videoCompressedInZip?: boolean;
+  videoZipPath?: string;
   videoOversized?: boolean;
   videoLoadWarning?: string;
 

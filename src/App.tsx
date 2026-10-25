@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { SessionBundle } from './core/model/session';
-import { importSessionZip } from './core/zip/zipImporter';
+import { importSessionZip, ZipInputSource } from './core/zip/zipImporter';
+import { isTauriEnvironment, openSessionDialog } from './core/fs/fileSystemAdapter';
 import { AppTab, Navbar } from './ui/components/Navbar';
 import { ZipDropzone } from './ui/components/ZipDropzone';
 import { SessionSummaryScreen } from './ui/screens/SessionSummaryScreen';
@@ -20,11 +21,11 @@ export const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleProcessFile = async (file: File | ArrayBuffer) => {
+  const handleProcessFile = async (file: ZipInputSource) => {
     setIsLoading(true);
     setError(null);
     setProgressPercent(5);
-    setProgressText('Iniciando lectura del archivo...');
+    setProgressText('Iniciando lectura de la sesión...');
 
     try {
       const bundle = await importSessionZip(file, (step, pct) => {
@@ -41,6 +42,24 @@ export const App: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Error desconocido al abrir el archivo.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleOpenZipClick = async () => {
+    if (isTauriEnvironment()) {
+      try {
+        const handle = await openSessionDialog();
+        if (handle?.path) {
+          await handleProcessFile({ nativeZipPath: handle.path });
+        } else if (handle?.file) {
+          await handleProcessFile(handle.file);
+        }
+      } catch (err) {
+        console.warn('Fallo en diálogo nativo, recurriendo a input HTML:', err);
+        fileInputRef.current?.click();
+      }
+    } else {
+      fileInputRef.current?.click();
     }
   };
 
@@ -82,7 +101,7 @@ export const App: React.FC = () => {
         sessionTitle={session?.title}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onOpenZipClick={() => fileInputRef.current?.click()}
+        onOpenZipClick={handleOpenZipClick}
         onLoadSyntheticClick={handleLoadSynthetic}
         isLoading={isLoading}
         hasSession={session !== null}
@@ -98,6 +117,7 @@ export const App: React.FC = () => {
         ) : !session ? (
           <ZipDropzone
             onFileSelected={handleProcessFile}
+            onOpenNativeDialog={handleOpenZipClick}
             onLoadSynthetic={handleLoadSynthetic}
             isLoading={isLoading}
             progressText={progressText}

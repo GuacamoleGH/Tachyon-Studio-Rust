@@ -20,6 +20,12 @@ import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { OverlayRenderer } from '../../engine/canvas/overlayRenderer';
 import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR } from '../../core/profile/vehicleProfile';
 import { RenderModal } from './RenderModal';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import {
+  isTauriEnvironment,
+  openVideoDialog,
+  createTauriFileSource,
+} from '../../core/fs/fileSystemAdapter';
 
 interface VideoPlayerScreenProps {
   session: SessionBundle;
@@ -78,6 +84,53 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
         videoRef.current.load();
       }
     }
+  };
+
+  const handleLinkVideoClick = async () => {
+    if (isTauriEnvironment()) {
+      try {
+        const handle = await openVideoDialog();
+        if (handle?.path) {
+          const tauriSource = createTauriFileSource(handle.path, handle.size);
+          const assetUrl = convertFileSrc(handle.path);
+
+          session.videoPath = handle.path;
+          session.videoSource = tauriSource;
+          session.videoBlob = undefined;
+          session.videoFileName = handle.name;
+          session.hasVideo = true;
+          session.videoOversized = false;
+          session.videoLoadWarning = undefined;
+          session.videoUrl = assetUrl;
+
+          setVideoUrl(assetUrl);
+          setVideoLoadError(null);
+          if (videoRef.current) {
+            videoRef.current.src = assetUrl;
+            videoRef.current.load();
+          }
+          return;
+        } else if (handle?.file) {
+          const newUrl = URL.createObjectURL(handle.file);
+          session.videoUrl = newUrl;
+          session.videoBlob = handle.file;
+          session.hasVideo = true;
+          session.videoFileName = handle.name;
+          session.videoOversized = false;
+          session.videoLoadWarning = undefined;
+          setVideoUrl(newUrl);
+          setVideoLoadError(null);
+          if (videoRef.current) {
+            videoRef.current.src = newUrl;
+            videoRef.current.load();
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn('Error al abrir diálogo nativo de vídeo:', err);
+      }
+    }
+    videoFileInputRef.current?.click();
   };
 
   // Actualizar opacidad del renderizador
@@ -313,7 +366,7 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
             onChange={handleSelectLocalVideo}
           />
           <button
-            onClick={() => videoFileInputRef.current?.click()}
+            onClick={handleLinkVideoClick}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] text-[#00E5FF] border border-[#00E5FF]/40 transition-colors cursor-pointer"
             title="Vincular archivo de vídeo MP4 directamente desde tu disco (ideal para vídeos pesados de más de 2 GB)"
           >
@@ -383,7 +436,7 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
               Esta sesión no incluye pista de vídeo o el archivo supera el límite de memoria del navegador.
             </span>
             <button
-              onClick={() => videoFileInputRef.current?.click()}
+              onClick={handleLinkVideoClick}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#00E5FF] hover:bg-[#00cce6] text-[#090C0E] transition-all cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5" />
@@ -405,7 +458,7 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
               {videoLoadError}
             </p>
             <button
-              onClick={() => videoFileInputRef.current?.click()}
+              onClick={handleLinkVideoClick}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#00E5FF] hover:bg-[#00cce6] text-[#090C0E] shadow-[0_0_20px_rgba(0,229,255,0.35)] transition-all cursor-pointer hover:scale-105"
             >
               <Film className="w-4 h-4 stroke-[2.5]" />

@@ -2,6 +2,7 @@ import {
   Input,
   Output,
   BlobSource,
+  Target,
   StreamTarget,
   BufferTarget,
   Mp4OutputFormat,
@@ -47,6 +48,7 @@ export interface VideoExporterOptions {
   videoBlob?: Blob;
   videoFile?: File | Blob;
   customSource?: Source;
+  customTarget?: Target;
   useFileSystemAccess?: boolean;
   onProgress?: (p: ExportProgress) => void;
   cancellationToken?: { isCancelled: boolean };
@@ -127,12 +129,12 @@ export class VideoExporter {
       status: 'Inicializando pipeline de vídeo en streaming con Mediabunny...',
     });
 
-    // 1. Configurar archivo de salida (Streaming con File System Access API o Buffer en memoria)
+    // 1. Configurar archivo de salida (Target personalizado, Streaming con File System Access API o Buffer en memoria)
     let fileHandle: any = null;
     let writableStream: any = null;
-    let fileSavedDirectly = false;
+    let fileSavedDirectly = !!options.customTarget;
 
-    if (useFileSystemAccess && isFileSystemAccessSupported()) {
+    if (!options.customTarget && useFileSystemAccess && isFileSystemAccessSupported()) {
       try {
         const fileExt = isWebm ? 'webm' : 'mp4';
         const fileMime = isWebm ? 'video/webm' : 'video/mp4';
@@ -156,7 +158,9 @@ export class VideoExporter {
     }
 
     // 2. Configurar Target de Mediabunny (Streaming sin saturar RAM)
-    const target = writableStream
+    const target = options.customTarget
+      ? options.customTarget
+      : writableStream
       ? new StreamTarget(writableStream)
       : new BufferTarget();
 

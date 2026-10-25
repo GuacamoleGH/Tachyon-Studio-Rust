@@ -3,6 +3,7 @@ import { Upload, Zap, AlertCircle } from 'lucide-react';
 
 interface ZipDropzoneProps {
   onFileSelected: (file: File) => void;
+  onOpenNativeDialog?: () => void;
   onLoadSynthetic: () => void;
   isLoading: boolean;
   progressText: string;
@@ -12,6 +13,7 @@ interface ZipDropzoneProps {
 
 export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
   onFileSelected,
+  onOpenNativeDialog,
   onLoadSynthetic,
   isLoading,
   progressText,
@@ -20,6 +22,15 @@ export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleClick = () => {
+    if (isLoading) return;
+    if (onOpenNativeDialog) {
+      onOpenNativeDialog();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -55,7 +66,7 @@ export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => !isLoading && fileInputRef.current?.click()}
+        onClick={handleClick}
         className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
           isDragOver
             ? 'border-[#00E676] bg-[#00E676]/5 scale-[1.01]'

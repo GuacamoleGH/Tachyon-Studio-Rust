@@ -28,6 +28,7 @@ import { SessionBundle } from '../../core/model/session';
 import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR, loadProfileFromStorage } from '../../core/profile/vehicleProfile';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { CockpitColors } from '../../core/theme/colors';
+import { sanitizeFilename } from '../../core/utils/fileUtils';
 import { MapTileManager } from '../../engine/maps/MapTileManager';
 
 interface TemplateEditorScreenProps {
@@ -694,7 +695,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `plantilla_${template.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+    a.download = `plantilla_${sanitizeFilename(template.name.toLowerCase())}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

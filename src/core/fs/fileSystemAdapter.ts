@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { CustomSource, type Source } from 'mediabunny';
+import { sanitizeFilename } from '../utils/fileUtils';
 
 export interface FileFilter {
   name: string;
@@ -237,6 +238,10 @@ export async function createSaveVideoWriter(
   ext: 'mp4' | 'webm'
 ): Promise<NativeStreamWriterOutput | null> {
   if (isTauriEnvironment()) {
+    // Sanitizar de forma defensiva para evitar caracteres prohibidos en Windows (<, >, :, ", /, \, |, ?, *)
+    const cleanBase = sanitizeFilename(suggestedName.replace(new RegExp(`\\.${ext}$`, 'i'), ''));
+    const safeDefaultPath = `${cleanBase}.${ext}`;
+
     const selected = await save({
       filters: [
         {
@@ -244,7 +249,7 @@ export async function createSaveVideoWriter(
           extensions: [ext],
         },
       ],
-      defaultPath: suggestedName,
+      defaultPath: safeDefaultPath,
       title: 'Guardar Vídeo Exportado',
     });
 

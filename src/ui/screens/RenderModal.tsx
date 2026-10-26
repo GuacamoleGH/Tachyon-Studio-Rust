@@ -36,6 +36,7 @@ import {
   parseTimeToSeconds,
   formatDurationHuman,
 } from '../../core/utils/timeFormat';
+import { sanitizeFilename } from '../../core/utils/fileUtils';
 
 interface RenderModalProps {
   isOpen: boolean;
@@ -191,7 +192,8 @@ export const RenderModal: React.FC<RenderModalProps> = ({
     const engine = TimeEngine.fromBundle(session);
     const isWebm = mode === 'webm_telemetry' || mode === 'webm_transparent';
     const ext = isWebm ? 'webm' : 'mp4';
-    const suggestedName = `tachyon_${session.title.toLowerCase().replace(/\s+/g, '_')}_${resolution.width}p_${Math.round(startSec)}-${Math.round(endSec)}s.${ext}`;
+    const safeTitle = sanitizeFilename(session.title.toLowerCase());
+    const suggestedName = `tachyon_${safeTitle}_${resolution.width}p_${Math.round(startSec)}-${Math.round(endSec)}s.${ext}`;
 
     let tauriWriter: any = null;
     let customTarget: StreamTarget | undefined = undefined;
@@ -262,9 +264,10 @@ export const RenderModal: React.FC<RenderModalProps> = ({
     const isWebm = mode === 'webm_transparent';
     const ext = isWebm ? 'webm' : 'mp4';
     const url = URL.createObjectURL(outputBlob);
+    const safeTitle = sanitizeFilename(session.title.toLowerCase());
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tachyon_${session.title.toLowerCase().replace(/\s+/g, '_')}_${resolution.width}p.${ext}`;
+    a.download = `tachyon_${safeTitle}_${resolution.width}p_${Math.round(startSec)}-${Math.round(endSec)}s.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   };

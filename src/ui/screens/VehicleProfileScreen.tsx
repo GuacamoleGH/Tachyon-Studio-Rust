@@ -28,6 +28,7 @@ import {
 } from '../../core/profile/vehicleProfile';
 import { TachometerCircularWidget } from '../../engine/widgets/TachometerWidget';
 import { ShiftLightsWidget } from '../../engine/widgets/ShiftLightsWidget';
+import { sanitizeFilename } from '../../core/utils/fileUtils';
 import { TelemetrySnapshot } from '../../core/telemetry/timeEngine';
 import { STANDARD_SIGNALS, StandardSignalKey } from '../../core/model/telemetry';
 import { SessionBundle } from '../../core/model/session';
@@ -270,7 +271,7 @@ export const VehicleProfileScreen: React.FC<VehicleProfileScreenProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `vehiculo_${profile.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+    a.download = `vehiculo_${sanitizeFilename(profile.name.toLowerCase())}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

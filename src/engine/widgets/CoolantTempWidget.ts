@@ -8,7 +8,7 @@ export class CoolantTempWidget implements BaseWidget {
   public bounds: WidgetBounds;
   public visible: boolean = true;
 
-  constructor(bounds: WidgetBounds = { x: 30, y: 150, width: 140, height: 75 }) {
+  constructor(bounds: WidgetBounds = { x: 30, y: 150, width: 140, height: 62 }) {
     this.bounds = bounds;
   }
 
@@ -17,11 +17,18 @@ export class CoolantTempWidget implements BaseWidget {
     const { ctx, snapshot, unitSystem } = context;
     const { x, y, width, height } = this.bounds;
 
-    const scale = Math.min(width / 140, height / 75);
+    const scale = Math.min(width / 140, height / 62);
     const cornerRadius = Math.max(3, Math.round(8 * scale));
-    const titleFontSize = Math.max(7, Math.round(Math.min(width * 0.07, height * 0.18)));
-    const valFontSize = Math.max(16, Math.round(Math.min(width * 0.23, height * 0.43)));
-    const unitFontSize = Math.max(8, Math.round(Math.min(width * 0.10, height * 0.19)));
+
+    const padX = Math.max(8, Math.round(10 * scale));
+    const padY = Math.max(5, Math.round(7 * scale));
+    const barH = Math.max(3, Math.round(5 * scale));
+    const barY = y + height - padY - barH;
+    const availableH = Math.max(20, barY - y - padY);
+
+    const titleFontSize = Math.max(9, Math.round(Math.min(width * 0.09, availableH * 0.28)));
+    const valFontSize = Math.max(20, Math.round(Math.min(width * 0.35, availableH * 0.62)));
+    const unitFontSize = Math.max(10, Math.round(valFontSize * 0.44));
 
     const coolantSignal = snapshot.signals.coolant_temp_c;
     const isAvailable = coolantSignal?.isAvailable && coolantSignal.value !== null;
@@ -31,17 +38,22 @@ export class CoolantTempWidget implements BaseWidget {
     const displayVal = tempC !== null ? (isImperial ? (tempC * 9) / 5 + 32 : tempC) : null;
     const unitLabel = isImperial ? '°F' : '°C';
 
-    // Determinar estado térmico
+    // Determinar estado térmico y etiqueta informativa
     let statusColor: string = CockpitColors.neonCyan;
+    let statusLabel = 'FRÍO';
     if (tempC !== null) {
       if (tempC < 70) {
         statusColor = CockpitColors.neonCyan; // Motor frío
+        statusLabel = 'FRÍO';
       } else if (tempC <= 102) {
         statusColor = CockpitColors.neonGreen; // Temperatura óptima de trabajo
+        statusLabel = 'ÓPTIMO';
       } else if (tempC <= 112) {
         statusColor = CockpitColors.neonAmber; // Advertencia calor
+        statusLabel = 'ALTO';
       } else {
         statusColor = CockpitColors.neonRed; // Peligro sobrecalentamiento
+        statusLabel = 'PELIGRO';
       }
     }
 
@@ -56,19 +68,27 @@ export class CoolantTempWidget implements BaseWidget {
     ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
     ctx.stroke();
 
-    const padX = Math.max(8, Math.round(10 * scale));
-
     // Título
     ctx.font = `bold ${titleFontSize}px ui-monospace, SFMono-Regular, monospace`;
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('TEMP REFRIGERANTE', x + padX, y + Math.max(4, Math.round(6 * scale)));
+    ctx.fillText('TEMP REFRIGERANTE', x + padX, y + padY);
 
-    // Valor numérico posicionado con espacio vertical limpio
+    // Estado en la esquina superior derecha si hay suficiente ancho
+    if (width > 160) {
+      const badgeFontSize = Math.max(8, Math.round(titleFontSize * 0.9));
+      ctx.font = `bold ${badgeFontSize}px ui-monospace, SFMono-Regular, monospace`;
+      ctx.fillStyle = statusColor;
+      ctx.textAlign = 'right';
+      ctx.fillText(`[ ${statusLabel} ]`, x + width - padX, y + padY);
+    }
+
+    // Valor numérico posicionado de forma equilibrada ocupando el centro vertical
     ctx.font = `900 ${valFontSize}px ui-monospace, SFMono-Regular, monospace`;
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    const valBaseY = y + height - Math.max(8, Math.round(11 * scale));
+    const valBaseY = barY - Math.max(3, Math.round(5 * scale));
 
     if (displayVal !== null) {
       ctx.fillStyle = statusColor;
@@ -88,8 +108,6 @@ export class CoolantTempWidget implements BaseWidget {
     // Mini barra horizontal de nivel en la parte inferior
     const barPadX = padX;
     const barW = width - barPadX * 2;
-    const barH = Math.max(2, Math.round(4 * scale));
-    const barY = y + height - Math.max(5, Math.round(6 * scale));
 
     ctx.beginPath();
     ctx.roundRect(x + barPadX, barY, barW, barH, 2);

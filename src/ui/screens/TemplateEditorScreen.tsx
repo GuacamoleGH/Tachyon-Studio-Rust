@@ -112,10 +112,12 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     setTimeout(() => setSaveMessage(null), 1800);
   }, [redoStack, template]);
 
-  // Atajos de teclado globales para el editor (Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y)
+  const removeSelectedWidgetRef = useRef<() => void>(() => {});
+
+  // Atajos de teclado globales para el editor (Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, Suprimir/Borrar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -127,12 +129,15 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         handleRedo();
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedWidgetId) {
+        e.preventDefault();
+        removeSelectedWidgetRef.current();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo]);
+  }, [handleUndo, handleRedo, selectedWidgetId]);
 
   // Estado de arrastre y redimensionado
   const [dragMode, setDragMode] = useState<DragMode>('none');
@@ -382,6 +387,16 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
         dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
         return;
       }
+      if (isNear(b.x, b.y + b.height / 2)) {
+        setDragMode('w');
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        return;
+      }
+      if (isNear(b.x + b.width / 2, b.y)) {
+        setDragMode('n');
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        return;
+      }
       if (isNear(b.x + b.width / 2, b.y + b.height)) {
         setDragMode('s');
         dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
@@ -424,30 +439,116 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
 
     const minSize = 40;
     let newBounds: WidgetBounds = { ...init };
+    const keepRatio = e.shiftKey;
+    const aspectRatio = init.width / Math.max(1, init.height);
 
     if (dragMode === 'move') {
       newBounds.x = Math.max(0, Math.min(template.resolution.width - init.width, init.x + dx));
       newBounds.y = Math.max(0, Math.min(template.resolution.height - init.height, init.y + dy));
     } else if (dragMode === 'se') {
-      newBounds.width = Math.max(minSize, init.width + dx);
-      newBounds.height = Math.max(minSize, init.height + dy);
-    } else if (dragMode === 'e') {
-      newBounds.width = Math.max(minSize, init.width + dx);
-    } else if (dragMode === 's') {
-      newBounds.height = Math.max(minSize, init.height + dy);
+      if (keepRatio) {
+        const scale = Math.abs(dx) > Math.abs(dy * aspectRatio) ? (init.width + dx) / init.width : (init.height + dy) / init.height;
+        const w = Math.max(minSize, Math.round(init.width * scale));
+        const h = Math.max(Math.round(minSize / aspectRatio), Math.round(w / aspectRatio));
+        newBounds.width = Math.round(h * aspectRatio);
+        newBounds.height = h;
+      } else {
+        newBounds.width = Math.max(minSize, init.width + dx);
+        newBounds.height = Math.max(minSize, init.height + dy);
+      }
     } else if (dragMode === 'ne') {
-      newBounds.width = Math.max(minSize, init.width + dx);
-      newBounds.y = init.y + dy;
-      newBounds.height = Math.max(minSize, init.height - dy);
+      if (keepRatio) {
+        const scale = Math.abs(dx) > Math.abs(-dy * aspectRatio) ? (init.width + dx) / init.width : (init.height - dy) / init.height;
+        let w = Math.max(minSize, Math.round(init.width * scale));
+        let h = Math.round(w / aspectRatio);
+        if (h < minSize) { h = minSize; w = Math.round(h * aspectRatio); }
+        newBounds.x = init.x;
+        newBounds.y = init.y + init.height - h;
+        newBounds.width = w;
+        newBounds.height = h;
+      } else {
+        newBounds.width = Math.max(minSize, init.width + dx);
+        newBounds.y = init.y + dy;
+        newBounds.height = Math.max(minSize, init.height - dy);
+      }
     } else if (dragMode === 'sw') {
-      newBounds.x = init.x + dx;
-      newBounds.width = Math.max(minSize, init.width - dx);
-      newBounds.height = Math.max(minSize, init.height + dy);
+      if (keepRatio) {
+        const scale = Math.abs(-dx) > Math.abs(dy * aspectRatio) ? (init.width - dx) / init.width : (init.height + dy) / init.height;
+        let w = Math.max(minSize, Math.round(init.width * scale));
+        let h = Math.round(w / aspectRatio);
+        if (h < minSize) { h = minSize; w = Math.round(h * aspectRatio); }
+        newBounds.x = init.x + init.width - w;
+        newBounds.y = init.y;
+        newBounds.width = w;
+        newBounds.height = h;
+      } else {
+        newBounds.x = init.x + dx;
+        newBounds.width = Math.max(minSize, init.width - dx);
+        newBounds.height = Math.max(minSize, init.height + dy);
+      }
     } else if (dragMode === 'nw') {
-      newBounds.x = init.x + dx;
-      newBounds.y = init.y + dy;
-      newBounds.width = Math.max(minSize, init.width - dx);
-      newBounds.height = Math.max(minSize, init.height - dy);
+      if (keepRatio) {
+        const scale = Math.abs(-dx) > Math.abs(-dy * aspectRatio) ? (init.width - dx) / init.width : (init.height - dy) / init.height;
+        let w = Math.max(minSize, Math.round(init.width * scale));
+        let h = Math.round(w / aspectRatio);
+        if (h < minSize) { h = minSize; w = Math.round(h * aspectRatio); }
+        newBounds.x = init.x + init.width - w;
+        newBounds.y = init.y + init.height - h;
+        newBounds.width = w;
+        newBounds.height = h;
+      } else {
+        newBounds.x = init.x + dx;
+        newBounds.y = init.y + dy;
+        newBounds.width = Math.max(minSize, init.width - dx);
+        newBounds.height = Math.max(minSize, init.height - dy);
+      }
+    } else if (dragMode === 'e') {
+      if (keepRatio) {
+        const w = Math.max(minSize, init.width + dx);
+        const h = Math.max(Math.round(minSize / aspectRatio), Math.round(w / aspectRatio));
+        newBounds.width = Math.round(h * aspectRatio);
+        newBounds.height = h;
+        newBounds.y = Math.round(init.y + (init.height - h) / 2);
+      } else {
+        newBounds.width = Math.max(minSize, init.width + dx);
+      }
+    } else if (dragMode === 'w') {
+      if (keepRatio) {
+        const w = Math.max(minSize, init.width - dx);
+        const h = Math.max(Math.round(minSize / aspectRatio), Math.round(w / aspectRatio));
+        const finalW = Math.round(h * aspectRatio);
+        newBounds.x = init.x + init.width - finalW;
+        newBounds.width = finalW;
+        newBounds.height = h;
+        newBounds.y = Math.round(init.y + (init.height - h) / 2);
+      } else {
+        newBounds.x = init.x + dx;
+        newBounds.width = Math.max(minSize, init.width - dx);
+      }
+    } else if (dragMode === 's') {
+      if (keepRatio) {
+        const h = Math.max(minSize, init.height + dy);
+        const w = Math.max(Math.round(minSize * aspectRatio), Math.round(h * aspectRatio));
+        const finalH = Math.round(w / aspectRatio);
+        newBounds.height = finalH;
+        newBounds.width = w;
+        newBounds.x = Math.round(init.x + (init.width - w) / 2);
+      } else {
+        newBounds.height = Math.max(minSize, init.height + dy);
+      }
+    } else if (dragMode === 'n') {
+      if (keepRatio) {
+        const h = Math.max(minSize, init.height - dy);
+        const w = Math.max(Math.round(minSize * aspectRatio), Math.round(h * aspectRatio));
+        const finalH = Math.round(w / aspectRatio);
+        newBounds.y = init.y + init.height - finalH;
+        newBounds.height = finalH;
+        newBounds.width = w;
+        newBounds.x = Math.round(init.x + (init.width - w) / 2);
+      } else {
+        newBounds.y = init.y + dy;
+        newBounds.height = Math.max(minSize, init.height - dy);
+      }
     }
 
     // Actualizar bounds en el template
@@ -578,6 +679,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     }));
     setSelectedWidgetId(null);
   };
+  removeSelectedWidgetRef.current = removeSelectedWidget;
 
   const handleSaveTemplate = () => {
     saveTemplateToStorage(template);

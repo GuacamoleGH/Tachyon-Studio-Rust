@@ -66,16 +66,16 @@ export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-12 p-6 animate-fadeIn">
+    <div className="w-full max-w-4xl mx-auto px-6 py-8 flex flex-col items-center justify-center min-h-[calc(100vh-140px)] animate-fadeIn">
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={handleClick}
-        className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+        className={`w-full border-2 border-dashed rounded-3xl p-12 md:p-16 flex flex-col items-center justify-center text-center cursor-pointer transition-all shadow-2xl ${
           isDragOver
-            ? 'border-[#00E676] bg-[#00E676]/5 scale-[1.01]'
-            : 'border-[#2C3947] bg-[#13181E] hover:border-[#00E5FF]/60 hover:bg-[#1A222B]/70'
+            ? 'border-[#00E676] bg-[#00E676]/10 scale-[1.01]'
+            : 'border-[#2C3947] bg-[#13181E] hover:border-[#00E5FF]/60 hover:bg-[#1A222B]/80'
         }`}
       >
         <input
@@ -90,32 +90,32 @@ export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
         <img
           src="/logo.png"
           alt="Tachyon Studio Logo"
-          className="w-24 h-24 rounded-2xl mb-5 shadow-[0_0_30px_rgba(0,230,118,0.25)] hover:scale-105 transition-transform object-contain"
+          className="w-28 h-28 rounded-2xl mb-6 shadow-[0_0_35px_rgba(0,230,118,0.3)] hover:scale-105 transition-transform object-contain"
         />
 
-        <h3 className="text-xl font-bold text-[#F0F4F8] tracking-wide mb-2">
+        <h3 className="text-2xl md:text-3xl font-extrabold text-[#F0F4F8] tracking-wide mb-3">
           Arrastra tu paquete ZIP de sesión aquí
         </h3>
-        <p className="text-xs text-[#8B9CB0] max-w-md leading-relaxed mb-6">
+        <p className="text-xs md:text-sm text-[#8B9CB0] max-w-xl leading-relaxed mb-8">
           Exportado directamente desde la app móvil Tachyon (contiene{' '}
-          <span className="text-[#00E5FF] font-mono">telemetria.csv</span>,{' '}
-          <span className="text-[#00E676] font-mono">session.json</span>,{' '}
-          <span className="text-[#FFB300] font-mono">ruta.gpx</span> y opcionalmente{' '}
-          <span className="text-[#F0F4F8] font-mono">video.mp4</span>).
+          <span className="text-[#00E5FF] font-mono font-medium">telemetria.csv</span>,{' '}
+          <span className="text-[#00E676] font-mono font-medium">session.json</span>,{' '}
+          <span className="text-[#FFB300] font-mono font-medium">ruta.gpx</span> y opcionalmente{' '}
+          <span className="text-[#F0F4F8] font-mono font-medium">video.mp4</span>).
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#00E676] hover:bg-[#00c864] text-[#090C0E] shadow-[0_0_15px_rgba(0,230,118,0.3)] transition-all cursor-pointer"
+            className="flex items-center gap-2.5 px-7 py-3 rounded-xl text-sm font-bold bg-[#00E676] hover:bg-[#00c864] text-[#090C0E] shadow-[0_0_20px_rgba(0,230,118,0.35)] hover:scale-105 transition-all cursor-pointer"
           >
             <Upload className="w-4 h-4 stroke-[2.5]" />
             <span>Seleccionar archivo ZIP</span>
           </button>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-[#2C3947]/70 w-full flex flex-col items-center">
-          <span className="text-xs text-[#8B9CB0] mb-3">¿No tienes una sesión a mano?</span>
+        <div className="mt-10 pt-8 border-t border-[#2C3947]/70 w-full max-w-md flex flex-col items-center">
+          <span className="text-xs md:text-sm text-[#8B9CB0] mb-3">¿No tienes una sesión a mano?</span>
           <button
             type="button"
             onClick={(e) => {
@@ -123,7 +123,7 @@ export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
               onLoadSynthetic();
             }}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] text-[#FFB300] border border-[#2C3947] transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs md:text-sm font-semibold bg-[#1A222B] hover:bg-[#2C3947] text-[#FFB300] border border-[#FFB300]/30 hover:border-[#FFB300]/70 transition-all cursor-pointer disabled:opacity-50"
           >
             <Zap className="w-4 h-4" />
             <span>Probar con sesión sintética (casos difíciles)</span>
@@ -133,7 +133,7 @@ export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
 
       {/* Barra de progreso */}
       {isLoading && (
-        <div className="mt-6 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg animate-fadeIn">
+        <div className="w-full mt-6 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg animate-fadeIn">
           <div className="flex justify-between items-center text-xs font-mono mb-2">
             <span className="text-[#00E5FF] font-semibold">{progressText}</span>
             <span className="text-[#F0F4F8]">{progressPercent}%</span>
@@ -149,7 +149,7 @@ export const ZipDropzone: React.FC<ZipDropzoneProps> = ({
 
       {/* Alerta de error */}
       {error && (
-        <div className="mt-6 bg-[#FF1744]/10 border border-[#FF1744]/40 rounded-xl p-4 flex items-start gap-3 text-xs text-[#FF1744] animate-fadeIn">
+        <div className="w-full mt-6 bg-[#FF1744]/10 border border-[#FF1744]/40 rounded-xl p-4 flex items-start gap-3 text-xs text-[#FF1744] animate-fadeIn">
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold block mb-1">Error al procesar la sesión</span>

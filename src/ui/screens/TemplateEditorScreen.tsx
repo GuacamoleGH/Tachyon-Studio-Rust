@@ -781,9 +781,10 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
                     setSaveMessage(`¡Plantilla "${bt.name}" activada y aplicada al reproductor!`);
                     setTimeout(() => setSaveMessage(null), 3000);
                   }}
-                  className="px-2.5 py-1.5 rounded text-left text-xs font-mono bg-[#1A222B] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-colors flex items-center justify-between"
+                  title={`${bt.name} - ${bt.description}`}
+                  className="px-2.5 py-1.5 rounded text-left text-xs font-mono bg-[#1A222B] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-colors flex items-center justify-between gap-1.5 group cursor-pointer"
                 >
-                  <span className="truncate">{bt.name}</span>
+                  <span className="truncate group-hover:text-[#F0F4F8]">{bt.name}</span>
                   <Sparkles className="w-3 h-3 text-[#FFB300] shrink-0" />
                 </button>
               ))}

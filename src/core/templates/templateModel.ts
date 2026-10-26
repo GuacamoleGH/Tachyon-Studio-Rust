@@ -24,7 +24,7 @@ export interface OverlayTemplate {
 export const TEMPLATE_MYCHRON_5: OverlayTemplate = {
   schema_version: '1.0.0',
   id: 'template_mychron5',
-  name: 'MyChron 5 Cockpit (Por Defecto)',
+  name: 'MyChron 5 Cockpit',
   description: 'Disposición deportiva completa con tacómetro, shift lights, velocímetro, pedales, fuerzas G y trazada GPS.',
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
@@ -135,7 +135,7 @@ export const TEMPLATE_MINIMALISTA: OverlayTemplate = {
 export const TEMPLATE_GT3_COMPETICION: OverlayTemplate = {
   schema_version: '1.0.0',
   id: 'template_gt3',
-  name: 'Cockpit GT3 Pro (Display Carreras)',
+  name: 'Cockpit GT3 Pro',
   description: 'Disposición de competición con tacómetro de barra, marcha engranada gigante, pedales duales y temperatura de motor.',
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
@@ -215,7 +215,7 @@ export const TEMPLATE_GT3_COMPETICION: OverlayTemplate = {
 export const TEMPLATE_FORZA_HUD: OverlayTemplate = {
   schema_version: '1.0.0',
   id: 'template_forza_hud',
-  name: 'Forza Motorsport HUD (Tacómetro + Marcha + Velocidad)',
+  name: 'Forza Motorsport HUD',
   description: 'Cuadro de instrumentos estilo Forza con tacómetro curvo, marcha en buje central y velocímetro integrado en cursiva.',
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
@@ -273,7 +273,7 @@ export const TEMPLATE_FORZA_HUD: OverlayTemplate = {
 export const TEMPLATE_WRC_RALLY: OverlayTemplate = {
   schema_version: '1.0.0',
   id: 'template_wrc_rally',
-  name: 'WRC Rally & Montaña (Zoom Curvas)',
+  name: 'WRC Rally & Montaña',
   description: 'Minimapa con súper zoom de curvas (80m), altímetro GPS, brújula de rumbo, tacómetro Forza y barras de fuerzas G.',
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
@@ -343,7 +343,7 @@ export const TEMPLATE_WRC_RALLY: OverlayTemplate = {
 export const TEMPLATE_F1_GT3: OverlayTemplate = {
   schema_version: '1.0.0',
   id: 'template_f1_gt3',
-  name: 'Fórmula 1 & GT Display (Horizontal)',
+  name: 'Fórmula 1 & GT Display',
   description: 'Tacómetro LED horizontal en la parte superior con marcha y velocímetro, minimapa centrado a 100m y panel de récords V-MAX.',
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
@@ -400,7 +400,7 @@ export const TEMPLATE_F1_GT3: OverlayTemplate = {
 export const TEMPLATE_TRACKDAY_PRO: OverlayTemplate = {
   schema_version: '1.0.0',
   id: 'template_trackday_pro',
-  name: 'Track Day Pro (Telemetría Completa)',
+  name: 'Track Day Pro',
   description: 'Disposición profesional completa con tacómetro Forza, minimapa de 120m, estadísticas V-MAX, fuerzas G y refrigerante.',
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
@@ -470,7 +470,7 @@ export const TEMPLATE_TRACKDAY_PRO: OverlayTemplate = {
 export const TEMPLATE_CLEAN_CORNER: OverlayTemplate = {
   schema_version: '1.0.0',
   id: 'template_clean_corner',
-  name: 'Clean Cockpit (Ultra Panorámica)',
+  name: 'Clean Cockpit Panorámico',
   description: 'Máxima visibilidad de pista con solo tacómetro Forza en la esquina inferior y minimapa súper nítido a 100m.',
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',

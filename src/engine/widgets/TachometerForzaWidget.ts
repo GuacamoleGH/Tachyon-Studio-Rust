@@ -191,12 +191,12 @@ export class TachometerForzaWidget implements BaseWidget {
     ctx.fillText(gearStr, cx, cy);
 
     // 7. Velocímetro integrado en la esquina inferior derecha (estilo Forza italic)
-    // El número y la unidad (KM/H) alineados horizontalmente a la misma altura
-    const targetY = y + height - Math.round(14 * scale);
-    const rightX = x + width - Math.round(14 * scale);
+    // El número y la unidad (KM/H) alineados horizontalmente a la altura de la base del arco (tick 8 / zona roja)
+    const targetY = cy + Math.round(radius * 0.62);
+    const rightX = Math.min(x + width - Math.round(10 * scale), cx + Math.round(radius * 1.10));
 
     // Unidad en cursiva (KM/H o MPH) a la derecha
-    const unitFontSize = Math.max(10, Math.round(15 * scale));
+    const unitFontSize = Math.max(10, Math.round(14 * scale));
     ctx.font = `italic bold ${unitFontSize}px system-ui, -apple-system, sans-serif`;
     const unitMetrics = ctx.measureText(unitLabel);
     const unitWidth = unitMetrics.width;
@@ -207,12 +207,12 @@ export class TachometerForzaWidget implements BaseWidget {
     ctx.fillText(unitLabel, rightX, targetY);
 
     // Número grande de velocidad en cursiva brillante, inmediatamente a la izquierda de la unidad
-    const speedFontSize = Math.max(26, Math.round(48 * scale));
+    const speedFontSize = Math.max(24, Math.round(44 * scale));
     ctx.font = `italic 900 ${speedFontSize}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'alphabetic';
 
-    const numX = rightX - unitWidth - Math.round(6 * scale);
+    const numX = rightX - unitWidth - Math.round(5 * scale);
     const speedStr = displaySpeed !== null ? Math.round(displaySpeed).toString() : '0';
 
     if (displaySpeed !== null) {

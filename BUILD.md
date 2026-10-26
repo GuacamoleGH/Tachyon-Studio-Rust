@@ -1,6 +1,6 @@
 # Guía de Compilación e Instalación 🛠️
 
-Este documento describe los requisitos del sistema, el flujo de desarrollo, la ejecución de pruebas y la generación de binarios para **Tachyon Studio Desktop (v1.7 PC)**.
+Este documento describe los requisitos del sistema, el flujo de desarrollo, la ejecución de pruebas y la generación de binarios para **Tachyon Studio Desktop (v1.8 PC)**.
 
 ---
 

@@ -54,11 +54,14 @@ export class TachometerForzaWidget implements BaseWidget {
       }
     }
 
-    const scale = Math.min(width, height) / 260;
-    // Centro del tacómetro ligeramente desplazado hacia la izquierda para dar espacio a la velocidad en la derecha
-    const cx = x + width * 0.44;
-    const cy = y + height * 0.48;
-    const radius = Math.min(width, height) * 0.42;
+    // Dimensionado dinámico ajustado para que el tacómetro llene perfectamente el cuadro de selección sin márgenes muertos
+    const pad = Math.max(4, Math.round(6 * (Math.min(width, height) / 260)));
+    const radius = Math.max(30, Math.min((width - pad * 2) / 2, (height - pad * 2) / 1.76));
+    const scale = radius / 110;
+
+    const cx = x + width / 2;
+    // Centrado vertical compensando la parte inferior donde se ubica el velocímetro
+    const cy = y + pad + radius + Math.max(0, (height - (pad * 2 + radius * 1.76)) / 2);
 
     // Ángulo de barrido estilo Forza: desde 140° (2.44 rad) hasta 395° (6.89 rad)
     const startAngle = (140 * Math.PI) / 180;
@@ -69,7 +72,7 @@ export class TachometerForzaWidget implements BaseWidget {
 
     // 1. Fondo sutil oscurecido semi-transparente (diseño limpio y minimalista)
     ctx.beginPath();
-    ctx.arc(cx, cy, radius + Math.round(10 * scale), startAngle - 0.1, endAngle + 0.1);
+    ctx.arc(cx, cy, radius + Math.round(6 * scale), startAngle - 0.1, endAngle + 0.1);
     ctx.fillStyle = 'rgba(12, 16, 22, 0.45)';
     ctx.fill();
 

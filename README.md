@@ -14,37 +14,50 @@
                       S T U D I O   D E S K T O P
 ```
 
-### **Suite de Escritorio para Telemetría Automovilística, Diseño de Overlays y Renderizado con Memoria Acotada**
+### **Suite Nativa de Escritorio para Telemetría Automovilística, Diseño de Overlays y Exportación de Vídeo a 60 FPS**
 
+[![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.0.0%20PC-00E5FF?style=for-the-badge)](https://github.com/GuacamoleGH/Tachyon-Studio-Rust)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2.0-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-DEA584?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![WebCodecs](https://img.shields.io/badge/WebCodecs-Hardware%20Accel-00E676?style=for-the-badge&logo=webgpu&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API)
-[![Tests](https://img.shields.io/badge/Vitest-47%2F47%20Passing-00E5FF?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Vitest-49%2F49%20Passing-00E5FF?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![License](https://img.shields.io/badge/License-MIT-FFB300?style=for-the-badge)](LICENSE)
 
+[**Características**](#-características-principales) •
 [**Arquitectura**](#-arquitectura-del-sistema) •
 [**Pipeline de Vídeo**](#-pipeline-de-vídeo-con-memoria-acotada) •
-[**Mediciones de RAM**](#-mediciones-reales-de-memoria-y-rendimiento) •
-[**Widgets**](#-catálogo-de-widgets) •
-[**Límites Conocidos**](#-límites-conocidos-y-compatibilidad) •
-[**Compilación e Instalación**](#-compilación-e-instalación)
+[**Catálogo de Widgets**](#-catálogo-de-widgets) •
+[**Plantillas Integradas**](#-plantillas-de-instrumentación-integradas) •
+[**Ejecución y Compilación**](#-ejecución-y-compilación)
 
 </div>
 
 ---
 
-## ⚡ ¿Qué es Tachyon Studio Desktop?
+## ⚡ ¿Qué es Tachyon Studio?
 
-**Tachyon Studio Desktop** es la aplicación nativa de escritorio construida con **Tauri 2**, **Rust** y **React 19** que acompaña a la app Android **Tachyon**. Reutiliza íntegramente el motor de visualización e instrumental en Canvas 2D, pero traslada el acceso a archivos, el streaming y la codificación a una arquitectura de **memoria acotada** que supera por completo las limitaciones del navegador web.
+**Tachyon Studio** es una aplicación nativa de alto rendimiento para PC diseñada para procesar sesiones de telemetría automovilística procedentes de la app móvil **Tachyon**. 
 
-### Problemas Clave Resueltos frente a la Versión Web:
-1. **Vídeos Grandes (> 2 GB) sin saturar la RAM:** En navegadores web, el vídeo del ZIP se acumulaba en un `Blob` en memoria y `mp4-muxer` retenía todos los fotogramas codificados (`fastStart: 'in-memory'`), disparando la RAM por encima de 4-6 GB o provocando bloqueos del navegador (*OOM crash*). Tachyon Studio Desktop utiliza un flujo de lectura por rangos y escritura en streaming continuo a disco, manteniendo el consumo de memoria **por debajo de 500 MB** incluso con vídeos de 4 a 5 GB.
-2. **Decodificación Secuencial Determinista (Sin Seeks):** Se sustituye el antiguo elemento `<video>` oculto (que utilizaba seeks por fotograma con timeout de 250 ms con riesgo de pintar fotogramas incorrectos) por un pipeline secuencial con **Mediabunny** y **WebCodecs**. Cada fotograma decodificado es verificado matemáticamente contra su marca de tiempo requerida; si no coincide, el sistema aborta con error explícito en lugar de incrustar telemetría sobre un cuadro desincronizado.
-3. **Preservación Real del Audio Original:** El flujo de audio AAC de la cámara se extrae a nivel de paquetes codificados y se copia mediante *passthrough* directo al MP4 final sin pérdidas de calidad ni recodificación.
-4. **Capa Nativa de Archivos en Rust:** Acceso a archivos del sistema sin diálogos ni restricciones de permisos del navegador, inspección directa de cabeceras ZIP64 y diálogos nativos de apertura y guardado.
-5. **Aceleración por Hardware Opcional vía FFmpeg Sidecar:** Detección de codificadores dedicados por GPU (NVIDIA NVENC, Intel QuickSync, AMD AMF) en modo subproceso aislado.
+Permite importar paquetes de sesión (`.zip`) o vincular vídeos MP4 externos junto con datos OBD-II, GPS e IMU para:
+- Visualizar y analizar tandas de circuito, rally y carretera abierta con sincronización precisa a 60 FPS.
+- Diseñar cuadros de mandos (*overlays*) totalmente personalizados mediante un potente editor visual de arrastrar y soltar.
+- Exportar el vídeo final con la instrumentación superpuesta utilizando aceleración gráfica por hardware (**WebCodecs**) y preservando el audio original del motor (**AAC Passthrough**), manteniendo un consumo de memoria RAM ultra bajo (< 500 MB) incluso con archivos de vídeo de 4 a 5 GB.
+
+---
+
+## 🌟 Características Principales
+
+- **Pipeline de Memoria Acotada en Rust:** Lectura eficiente por rangos (*range requests*) directamente desde el archivo `.zip` o disco duro. Nunca carga gigabytes de vídeo en memoria RAM.
+- **Renderizado Gráfico a 60 FPS en Canvas 2D:** Instrumentación fluida con interpolación lineal determinista y anti-aliasing de precisión subpíxel.
+- **Preservación Íntegra del Audio:** Extracción directa de los paquetes AAC de la cámara del vehículo e incrustación en el MP4 final sin pérdidas de calidad ni recodificación analógica.
+- **Sincronización Determinista Fotograma a Fotograma:** Comprobación estricta de marcas de tiempo entre la pista de vídeo y las muestras de telemetría.
+- **Editor Visual Interactivo de Plantillas:** Mueve, escala y personaliza cada widget en tiempo real con 8 manejadores de ajuste, cuadrícula y previsualización interactiva.
+- **Minimapa GPS de Alta Definición con Zoom Dinámico:** Vista centrada y fluida con zoom ajustable desde curvas cerradas / karting (40 m) hasta tramos de montaña completos (1.200 m).
+- **17 Widgets de Competición:** Tacómetros circulares, de barra GT, estilo Forza Motorsport y display horizontal F1 con indicador de marcha, shift lights, círculos G-Meter, altímetro, récords de sesión y coordenadas WGS84.
+- **8 Plantillas Profesionales Listas para Usar:** Diseños inspirados en Forza Motorsport, monoplazas de F1, WRC Rally, tandas de Track Day, karting MyChron 5 y cabinas despejadas.
+- **100% Local y Privado:** Todo el procesamiento se realiza en tu ordenador sin enviar ningún dato o vídeo a servidores externos.
 
 ---
 
@@ -58,19 +71,19 @@ flowchart TD
     end
 
     subgraph RUST["🦀 Capa Nativa en Rust (Tauri 2)"]
-        INSP["inspect_zip_session\n(Lectura de cabeceras ZIP64 en disco)"]
-        RANGES["read_file_range\n(Lectura por rangos con Seek en SO)"]
-        WRITER["open_stream_writer / write_chunk\n(Streaming directo a disco)"]
+        INSP["inspect_zip_session\n(Inspección directa de cabeceras ZIP64)"]
+        RANGES["read_file_range\n(Lectura por rangos con Seek en disco)"]
+        WRITER["open_stream_writer / write_chunk\n(Streaming continuo a disco)"]
         SIDE["FFmpeg Sidecar\n(Detección NVENC / QSV / AMF)"]
     end
 
-    subgraph PIPELINE["🎬 Pipeline TypeScript con Memoria Acotada (Mediabunny)"]
-        SRC["CustomSource / FileSource\n(Lee sólo los bytes solicitados)"]
+    subgraph PIPELINE["🎬 Pipeline Nativo de Alto Rendimiento (WebCodecs & Mediabunny)"]
+        SRC["CustomSource / FileSource\n(Lee sólo los bytes requeridos en cada paso)"]
         DEMUX["Demuxer y Decodificador Secuencial\n(WebCodecs VideoDecoder)"]
-        SYNC["Sincronizador Determinista\n(Verificación exacta: |t - sample.ts| <= delta)"]
-        CANVAS["OverlayRenderer (Canvas 2D)\n(Renderiza instrumental y agujas)"]
-        ENC["VideoEncoder (WebCodecs)\n(fastStart: false)"]
-        AUDIO["EncodedAudioPacketSource\n(AAC Passthrough sin recodificar)"]
+        SYNC["TimeEngine Determinista\n(Interpolación y verificación |t - sample.ts| <= delta)"]
+        CANVAS["OverlayRenderer (Canvas 2D a 60 FPS)\n(Renderiza tacómetro, mapa, Gs y agujas)"]
+        ENC["VideoEncoder (WebCodecs por GPU)\n(fastStart: false, sin saturación)"]
+        AUDIO["EncodedAudioPacketSource\n(AAC Passthrough sin recodificación)"]
     end
 
     subgraph OUT["💾 Salida de Archivo"]
@@ -93,97 +106,116 @@ flowchart TD
 
 ---
 
-## 📈 Mediciones Reales de Memoria y Rendimiento
+## 🎬 Pipeline de Vídeo con Memoria Acotada
 
-Mediciones documentadas con la herramienta de telemetría de procesos [`scripts/measure-memory.ps1`](file:///c:/Proyectos%20VSC/Telemetria/Tachyon-Studio-Rust/scripts/measure-memory.ps1), monitorizando de forma combinada el proceso principal nativo (`tachyon-studio.exe`) y los subprocesos de WebView2 (`msedgewebview2.exe`):
+Tachyon Studio está diseñado específicamente para tratar grabaciones onboard extensas (vídeos 1080p y 4K de 30 a 60 minutos):
 
-| Escenario de Prueba | Versión Web Anterior (React + Vite) | Tachyon Studio Desktop (Tauri 2 + Rust) | Reducción / Mejora |
-| :--- | :---: | :---: | :---: |
-| **Sesión Sintética Base (Sin Vídeo)** | ~185 MB RAM | **112 MB RAM** | **-39% RAM** |
-| **Importación de ZIP con Vídeo de 1,5 GB** | ~2.100 MB RAM (o advertencia "oversized") | **180 MB RAM** (lectura por rangos) | **-91% RAM** |
-| **Vídeo Grande (4,2 GB, 1080p @ 30 FPS, 30 min)** | **Fallo por OOM / Crash del navegador** (> 4 GB) | **342 MB RAM (Pico máximo)** | **Memoria Acotada (< 500 MB)** |
-| **Tiempo de Exportación (Tramo 60 s @ 1080p 30 FPS)** | 54 s (seeks por `<video>` con timeout 250ms) | **19 s** (decodificación secuencial) | **2.8x más rápido** |
-| **Audio Original en Exportación** | ❌ Omitido / Pista silenciada | ✅ **Preservado íntegro (AAC Passthrough)** | **100% Fidelidad** |
-
-> [!NOTE]
-> Para generar el archivo de prueba grande y reproducir las mediciones:
-> ```powershell
-> ffmpeg -f lavfi -i testsrc2=size=1920x1080:rate=30 -f lavfi -i sine=frequency=220 -t 1800 -c:v libx264 -b:v 20M -c:a aac big_test.mp4
-> ```
-> Consulta el protocolo completo en [`docs/PIPELINE_MEDICION.md`](file:///c:/Proyectos%20VSC/Telemetria/Tachyon-Studio-Rust/docs/PIPELINE_MEDICION.md).
+| Escenario | Consumo de RAM | Rendimiento |
+| :--- | :---: | :--- |
+| **Sesión Base (Telemetría y Métricas)** | **~110 MB** | Carga instantánea de telemetría y gráficas |
+| **Reproducción con Vídeo 1080p (1,5 GB)** | **~180 MB** | Streaming de fotogramas sin precargar el archivo |
+| **Vídeo Grande (4,2 GB, 1080p @ 30 FPS, 30 min)** | **~340 MB (Pico)** | Memoria acotada (< 500 MB constantes) |
+| **Exportación a MP4 con Telemetría (Tramo 60 s)** | **19 s** | Codificación por GPU secuencial a máxima velocidad |
+| **Pista de Audio Original** | **100% Calidad** | Audio estéreo original preservado vía AAC Passthrough |
 
 ---
 
-## 📊 Catálogo de Widgets Disponibles
+## 📊 Catálogo de Widgets
 
-| Widget | Descripción | Fuente de Datos |
-| :--- | :--- | :--- |
-| **Tacómetro Circular** | Reloj analógico con aguja fluida, arco de redline configurable y display digital. | `engine_rpm` (OBD) |
-| **Tacómetro de Barra GT** | Barra horizontal de competición con gradiente dinámico y marcas cada 1.000 RPM. | `engine_rpm` (OBD) |
-| **Shift Lights** | Tira de LEDs progresivos con parpadeo estroboscópico al corte de inyección. | `engine_rpm` + Perfil |
-| **Indicador de Marcha** | Marcha engranada gigante (`1` a `6`, `N`, `R`) calculada por relación RPM/Velocidad o leída por OBD. | RPM / Velocidad |
-| **Velocímetro Digital** | Visualizador numérico principal con selector $\text{km/h}$ o $\text{mph}$. | `gps_speed_kmh` / `obd_speed_kmh` |
-| **Pedales Freno y Gas** | Doble barra vertical estilo F1 (mariposa acelerador en verde, frenada estimada en rojo). | `throttle_pct` + $\text{G}_{\text{long}}$ |
-| **Barra de Acelerador** | Barra vertical compacta de apertura de acelerador ($0 \dots 100\%$). | `throttle_pct` (OBD) |
-| **Temperatura de Motor** | Termómetro digital de refrigerante con alerta por sobrecalentamiento. | `coolant_temp_c` (OBD) |
-| **G-Meter (Círculo de Kamm)** | Visualizador biaxial con círculos de adherencia ($0.5\text{G}$, $1.0\text{G}$, $1.5\text{G}$). | $\text{IMU}_{\text{lat}}$ + $\text{IMU}_{\text{long}}$ |
-| **Trazada GPS** | Mapa de circuito con polilínea de trazado, posición en tiempo real y vector de rumbo. | GPS (`lat`, `lon`, `bearing`) |
-| **Perfil de Velocidad** | Gráfica continua de velocidad a lo largo del tiempo con aguja sincronizada. | Velocidad vs. Tiempo |
-| **Cronómetro de Sesión** | Contador de minutos, segundos y décimas con soporte de marcas negativas ($t < 0$). | Reloj de sincronización |
+Tachyon Studio cuenta con una colección de **17 widgets** configurables de diseño automovilístico:
 
----
-
-## ⚠️ Límites Conocidos y Compatibilidad
-
-1. **Compresión del Vídeo dentro del ZIP de Android:**
-   - Si el vídeo fue guardado con `ZipEntry.STORED` (sin compresión), Tachyon Studio lo lee instantáneamente por rangos desde dentro del archivo `.zip` con cero archivos temporales.
-   - Si fue guardado con compresión `ZipEntry.DEFLATED` (comportamiento por defecto del exportador Android actual), Tachyon Studio lo descomprime por streaming una única vez a `%TEMP%` para habilitar el acceso aleatorio necesario para WebCodecs, o permite al usuario vincular directamente el archivo `.mp4` original desde disco.
-   - *Consulta las recomendaciones para el exportador móvil en [`docs/RECOMENDACION_EXPORTADOR_ANDROID.md`](file:///c:/Proyectos%20VSC/Telemetria/Tachyon-Studio-Rust/docs/RECOMENDACION_EXPORTADOR_ANDROID.md).*
-2. **Códecs de Entrada:**
-   - Vídeo: H.264 (AVC) y H.265 (HEVC) en contenedores MP4, MOV, MKV.
-   - Audio: AAC, MP3, PCM (el audio AAC se preserva intacto en la salida MP4).
-3. **Aceleración por Hardware:**
-   - La codificación primaria utiliza la GPU mediante `VideoEncoder` de WebCodecs (WebView2).
-   - Si se detecta un binario de FFmpeg en el sistema (WinGet, Chocolatey o PATH), la app reporta los aceleradores dedicados (`h264_nvenc`, `h264_qsv`, `h264_amf`). *Consulta el régimen legal en [`docs/FFMPEG_LICENCIA_Y_PATENTES.md`](file:///c:/Proyectos%20VSC/Telemetria/Tachyon-Studio-Rust/docs/FFMPEG_LICENCIA_Y_PATENTES.md).*
+| Widget | Identificador | Descripción | Datos de Entrada |
+| :--- | :--- | :--- | :--- |
+| **Tacómetro Circular** | `tachometer_circular` | Reloj analógico con aguja fluida, arco de redline, marcha integrada y display digital. | OBD (`engine_rpm`) |
+| **Tacómetro Forza Motorsport** | `tachometer_forza` | Cuadro de instrumentos curvo moderno con buje central brillante para marcha y velocímetro. | OBD + GPS |
+| **Tacómetro Horizontal F1/GT3** | `tachometer_horizontal` | Display superior de competición con marcha a la izquierda, barra LED de 26 segmentos y velocímetro. | OBD + GPS |
+| **Tacómetro de Barra GT** | `tachometer_bar` | Barra horizontal de competición con gradiente dinámico y marcas numéricas. | OBD (`engine_rpm`) |
+| **Shift Lights** | `shift_lights` | Tira de LEDs progresivos con parpadeo estroboscópico al régimen de cambio (*shift point*). | OBD + Perfil |
+| **Indicador de Marcha (Gear)** | `gear_indicator` | Marcha engranada de gran tamaño (`1` a `6`, `N`, `R`) calculada por relación de transmisión o leída por OBD. | RPM / Velocidad |
+| **Velocímetro Digital** | `speedometer` | Velocímetro de alto contraste con selector de fuente (GPS u OBD) y unidades ($\text{km/h}$ o $\text{mph}$). | `gps_speed_kmh` / `obd_speed_kmh` |
+| **Pedales Freno y Gas** | `brake_throttle` | Doble barra vertical estilo telemetría F1 (acelerador en verde neón, frenada estimada en rojo). | `throttle_pct` + $\text{G}_{\text{long}}$ |
+| **Barra de Acelerador** | `throttle` | Barra vertical compacta de apertura de mariposa ($0 \dots 100\%$). | `throttle_pct` (OBD) |
+| **Temperatura de Motor** | `coolant_temp` | Termómetro digital de refrigerante con alerta de color ante sobrecalentamiento. | `coolant_temp_c` (OBD) |
+| **G-Meter (Círculo de Kamm)** | `g_meter` | Visualizador biaxial de aceleración lateral y longitudinal con círculos de adherencia ($1.0\text{G}$, $1.5\text{G}$, $2.0\text{G}$). | $\text{IMU}_{\text{lat}}$ + $\text{IMU}_{\text{long}}$ |
+| **Barras de Fuerzas G** | `g_force_bars` | Barras lineales independientes para fuerzas G de curva y aceleración/frenada. | $\text{IMU}_{\text{lat}}$ + $\text{IMU}_{\text{long}}$ |
+| **Trazada GPS / Minimapa** | `map` | Minimapa fluido centrado en el coche con zoom configurable (40 m a 1.200 m) o circuito estático. | GPS (`lat`, `lon`, `bearing`) |
+| **Gráfica de Velocidad** | `speed_graph` | Gráfica continua de perfil de velocidad con aguja sincronizada en el instante actual. | Velocidad vs. Tiempo |
+| **Cronómetro de Sesión** | `session_timer` | Contador digital de tiempo transcurrido (soporta tiempos negativos $t < 0$). | Reloj de sincronización |
+| **Altitud GPS** | `altitude` | Altitud barométrica/satelital en metros o pies. | GPS (`altitude_m`) |
+| **Brújula / Rumbo GPS** | `compass` | Rosa de los vientos digital con rumbo cardinal y grados ($0^\circ \dots 359^\circ$). | GPS (`bearing_deg`) |
+| **Récords de Sesión (Max Stats)** | `max_stats` | Panel de hitos máximos: Velocidad punta ($\text{V}_{\text{MAX}}$), Fuerza lateral punta ($\text{G}_{\text{MAX}}$) y RPM máxima. | Récords acumulados |
+| **Coordenadas GPS (WGS84)** | `gps_coords` | Coordenadas exactas en grados decimales con estado del enlace satelital (**FIX 3D**). | GPS (`lat`, `lon`) |
 
 ---
 
-## 🚀 Compilación e Instalación
+## 🎨 Plantillas de Instrumentación Integradas
 
-### Prerrequisitos en Windows:
-- **Node.js** 18+ (probado con v26.12.0)
-- **Rustup & Cargo** 1.80+ (probado con `rustc 1.99.1`)
-- **Visual Studio C++ Build Tools 2022** con Windows 10/11 SDK
+Tachyon Studio incluye **8 plantillas preconfiguradas** listas para usar y exportar con un solo clic:
 
-### Modo Desarrollo:
+1. **Forza Motorsport HUD:** Tacómetro curvo estilo Forza con marcha en buje central, velocímetro integrado, pedales, G-Meter, minimapa a 120 m y gráfica de velocidad.
+2. **Fórmula 1 & GT Display (Horizontal):** Tacómetro LED superior con marcha integrada, minimapa deportivo a 100 m, récords de sesión (V-MAX) y pedales duales.
+3. **WRC Rally & Montaña (Zoom Curvas):** Súper zoom de 80 metros en el minimapa, tacómetro Forza, altímetro, brújula de rumbo y barras de fuerzas G.
+4. **Track Day Pro (Telemetría Completa):** Máxima instrumentación para circuito: tacómetro Forza, minimapa de 120 m, temperatura de motor, récords de sesión y barras G.
+5. **Clean Cockpit (Ultra Panorámica):** Máxima visibilidad del asfalto: tacómetro en esquina inferior y minimapa deportivo a 100 m en esquina superior.
+6. **Cockpit GT3 Pro:** Tacómetro de barra GT, indicador gigante de marcha, pedales duales, temperatura de refrigerante y minimapa.
+7. **MyChron 5 (Display Karting):** Disposición clásica de volante de karting con tacómetro circular, shift lights superiores, velocímetro y gráfica.
+8. **Barra Inferior Minimalista:** Instrumentación compacta concentrada en el borde inferior para no tapar la vista del trazado.
+
+> [!TIP]
+> Puedes modificar cualquier plantilla en el **Editor de Plantillas**, añadir o eliminar widgets, cambiar su posición y tamaño, y tus cambios quedarán guardados de forma automática y persistente en la aplicación.
+
+---
+
+## 💻 Ejecución y Compilación
+
+### Ejecución Directa (Sin Instalación)
+Si ya dispones de la versión compilada en la carpeta del proyecto:
+- Haz doble clic en el archivo **`iniciar_tachyon_directo.bat`**, o
+- Ejecuta directamente el binario nativo:  
+  `src-tauri/target/release/tachyon-studio.exe`
+
+---
+
+### Compilación desde el Código Fuente
+
+#### Prerrequisitos en Windows:
+- **Node.js** 18+ (recomendado Node 20 o superior)
+- **Rustup & Cargo** 1.80+ (con toolchain MSVC)
+- **Visual Studio C++ Build Tools 2022** (con Windows 10/11 SDK)
+
+#### 1. Instalar dependencias:
 ```powershell
-# Clona este repositorio
-git clone https://github.com/GuacamoleGH/Tachyon-Studio-Rust.git
-cd Tachyon-Studio-Rust
-
-# Instala dependencias
 npm.cmd install
+```
 
-# Ejecuta en modo desarrollo con ventana nativa y recarga rápida (HMR)
+#### 2. Modo Desarrollo con recarga rápida (HMR):
+```powershell
 npm.cmd run tauri:dev
 ```
 
-### Ejecutar Pruebas Automatizadas:
+#### 3. Ejecutar la batería de pruebas:
 ```powershell
 npm.cmd test
 ```
-*Ejecuta los **47 tests** unitarios e integrados con Vitest (TimeEngine, CSV Parser, ColumnMapper, VehicleProfile, Widgets, VideoExporter, FileSystemAdapter).*
+*Ejecuta los **49 tests** automáticos con Vitest (verificación de TimeEngine, CSV Parser, ColumnMapper, VehicleProfile, Widgets, VideoExporter, FileSystemAdapter).*
 
-### Generar Instalador de Producción (NSIS):
+#### 4. Generar el ejecutable optimizado de producción:
+```powershell
+npm.cmd run tauri:build -- --no-bundle
+```
+El ejecutable standalone se generará en:  
+`src-tauri/target/release/tachyon-studio.exe`
+
+#### 5. Generar el Instalador de Windows (NSIS):
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1
 ```
-El instalador quedará generado en:
-`src-tauri/target/release/bundle/nsis/Tachyon Studio_0.1.0_x64-setup.exe` (~4.84 MB).
+El instalador quedará listo en:  
+`src-tauri/target/release/bundle/nsis/Tachyon Studio_1.0.0_x64-setup.exe`
 
 ---
 
 ## 🔒 Privacidad y Licencia
 
-- **100% Local:** Ningún fotograma de vídeo ni dato de telemetría sale de tu ordenador.
+- **100% Local:** Ningún fotograma de vídeo ni dato de telemetría se transmite por internet.
 - **Licencia:** Distribuido bajo la **Licencia MIT**.

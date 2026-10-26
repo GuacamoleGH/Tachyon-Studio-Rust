@@ -16,7 +16,7 @@
 
 ### **Suite Nativa de Escritorio para Telemetría Automovilística, Diseño de Overlays y Exportación de Vídeo a 60 FPS**
 
-[![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.0.0%20PC-00E5FF?style=for-the-badge)](https://github.com/GuacamoleGH/Tachyon-Studio-Rust)
+[![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.1.0%20PC-00E5FF?style=for-the-badge)](https://github.com/GuacamoleGH/Tachyon-Studio-Rust)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2.0-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-DEA584?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)

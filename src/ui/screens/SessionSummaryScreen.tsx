@@ -63,7 +63,7 @@ export const SessionSummaryScreen: React.FC<SessionSummaryScreenProps> = ({
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fadeIn">
+    <div className="px-6 py-4 w-full space-y-6 animate-fadeIn">
       {/* 1. Header con métricas principales */}
       <div className="bg-[#13181E] border border-[#2C3947] rounded-xl p-5 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-[#00E676] via-[#00E5FF] to-[#FF1744]" />

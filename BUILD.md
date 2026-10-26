@@ -1,6 +1,6 @@
 # Guía de Compilación e Instalación 🛠️
 
-Este documento describe los requisitos del sistema, el flujo de desarrollo, la ejecución de pruebas y la generación de binarios para **Tachyon Studio Desktop (v1.0 PC)**.
+Este documento describe los requisitos del sistema, el flujo de desarrollo, la ejecución de pruebas y la generación de binarios para **Tachyon Studio Desktop (v1.1 PC)**.
 
 ---
 
@@ -86,7 +86,7 @@ npm.cmd run tauri:build
 ```
 El instalador resultante se generará en:
 ```
-src-tauri/target/release/bundle/nsis/Tachyon Studio_1.0.0_x64-setup.exe
+src-tauri/target/release/bundle/nsis/Tachyon Studio_1.1.0_x64-setup.exe
 ```
 
 ---

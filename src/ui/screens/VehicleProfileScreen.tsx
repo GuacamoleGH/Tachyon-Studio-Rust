@@ -298,7 +298,7 @@ export const VehicleProfileScreen: React.FC<VehicleProfileScreenProps> = ({
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fadeIn">
+    <div className="px-6 py-4 w-full space-y-6 animate-fadeIn">
       {/* 1. Cabecera */}
       <div className="bg-[#13181E] border border-[#2C3947] rounded-xl p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
         <div>

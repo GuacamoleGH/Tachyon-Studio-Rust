@@ -391,7 +391,7 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-4 animate-fadeIn">
+    <div className="px-6 py-4 w-full space-y-4 animate-fadeIn">
       {/* 1. Barra superior de estado */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-[#13181E] border border-[#2C3947] rounded-xl px-4 py-2.5 shadow-md">
         <div className="flex items-center gap-3">

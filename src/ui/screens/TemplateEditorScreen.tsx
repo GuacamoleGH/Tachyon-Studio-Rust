@@ -551,7 +551,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   };
 
   return (
-    <div className="p-6 max-w-[1700px] mx-auto space-y-4 animate-fadeIn">
+    <div className="px-6 py-4 w-full space-y-4 animate-fadeIn">
       {/* 1. Barra de herramientas superior */}
       <div className="bg-[#13181E] border border-[#2C3947] rounded-xl px-5 py-3 shadow-lg flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -604,9 +604,9 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
       </div>
 
       {/* 2. Disposición principal: Capas (izq) | Canvas (centro) | Inspector (der) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* Panel izquierdo: Capas y Añadir widgets */}
-        <div className="lg:col-span-3 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-4">
+        <div className="lg:col-span-3 xl:col-span-2 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-4">
           <div className="flex items-center justify-between border-b border-[#2C3947] pb-2.5">
             <span className="text-xs font-mono font-bold text-[#F0F4F8] uppercase flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#00E5FF]" />
@@ -707,7 +707,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
         </div>
 
         {/* Panel central: Lienzo de diseño Canvas */}
-        <div className="lg:col-span-6 flex flex-col space-y-3">
+        <div className="lg:col-span-6 xl:col-span-7 2xl:col-span-8 flex flex-col space-y-3">
           <div
             ref={containerRef}
             className="bg-[#090C0E] border border-[#2C3947] rounded-xl overflow-hidden shadow-2xl relative aspect-video flex items-center justify-center"
@@ -753,7 +753,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
         </div>
 
         {/* Panel derecho: Inspector de Propiedades */}
-        <div className="lg:col-span-3 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-4 self-start h-fit">
+        <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-2 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-4 self-start h-fit">
           <div className="flex items-center justify-between border-b border-[#2C3947] pb-2.5">
             <span className="text-xs font-mono font-bold text-[#F0F4F8] uppercase flex items-center gap-2">
               <Sliders className="w-4 h-4 text-[#00E676]" />

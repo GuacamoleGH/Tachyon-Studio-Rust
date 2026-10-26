@@ -30,7 +30,8 @@
 [**Pipeline de Vídeo**](#-pipeline-de-vídeo-con-memoria-acotada) •
 [**Catálogo de Widgets**](#-catálogo-de-widgets) •
 [**Plantillas Integradas**](#-plantillas-de-instrumentación-integradas) •
-[**Ejecución y Compilación**](#-ejecución-y-compilación)
+[**Inicio Rápido**](#-inicio-rápido) •
+[**Guía de Compilación (BUILD.md)**](BUILD.md)
 
 </div>
 
@@ -166,52 +167,21 @@ Tachyon Studio incluye **8 plantillas preconfiguradas** listas para usar y expor
 
 ---
 
-## 💻 Ejecución y Compilación
+## 🚀 Inicio Rápido
 
-### Ejecución Directa (Sin Instalación)
-Si ya dispones de la versión compilada en la carpeta del proyecto:
-- Haz doble clic en el archivo **`iniciar_tachyon_directo.bat`**, o
-- Ejecuta directamente el binario nativo:  
+### Ejecución Directa (Sin Necesidad de Instalación)
+Si ya tienes la aplicación en tu equipo:
+- Haz doble clic en el script **`iniciar_tachyon_directo.bat`**, o
+- Ejecuta directamente el binario compilado:  
   `src-tauri/target/release/tachyon-studio.exe`
 
 ---
 
-### Compilación desde el Código Fuente
+## 🛠️ Compilación y Desarrollo
 
-#### Prerrequisitos en Windows:
-- **Node.js** 18+ (recomendado Node 20 o superior)
-- **Rustup & Cargo** 1.80+ (con toolchain MSVC)
-- **Visual Studio C++ Build Tools 2022** (con Windows 10/11 SDK)
+Las instrucciones detalladas para compilar desde el código fuente, requisitos del sistema, ejecución de los 49 tests con Vitest y generación del instalador para Windows (`.exe` NSIS) se encuentran en la guía dedicada:
 
-#### 1. Instalar dependencias:
-```powershell
-npm.cmd install
-```
-
-#### 2. Modo Desarrollo con recarga rápida (HMR):
-```powershell
-npm.cmd run tauri:dev
-```
-
-#### 3. Ejecutar la batería de pruebas:
-```powershell
-npm.cmd test
-```
-*Ejecuta los **49 tests** automáticos con Vitest (verificación de TimeEngine, CSV Parser, ColumnMapper, VehicleProfile, Widgets, VideoExporter, FileSystemAdapter).*
-
-#### 4. Generar el ejecutable optimizado de producción:
-```powershell
-npm.cmd run tauri:build -- --no-bundle
-```
-El ejecutable standalone se generará en:  
-`src-tauri/target/release/tachyon-studio.exe`
-
-#### 5. Generar el Instalador de Windows (NSIS):
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1
-```
-El instalador quedará listo en:  
-`src-tauri/target/release/bundle/nsis/Tachyon Studio_1.0.0_x64-setup.exe`
+👉 **[Consulta la Guía de Compilación en BUILD.md](BUILD.md)**
 
 ---
 

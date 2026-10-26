@@ -1,5 +1,6 @@
 import { BaseWidget, WidgetRenderContext } from '../widgets/types';
 import { TachometerCircularWidget } from '../widgets/TachometerWidget';
+import { TachometerForzaWidget } from '../widgets/TachometerForzaWidget';
 import { ShiftLightsWidget } from '../widgets/ShiftLightsWidget';
 import { SpeedometerWidget } from '../widgets/SpeedometerWidget';
 import { GMeterWidget } from '../widgets/GMeterWidget';
@@ -246,6 +247,9 @@ export class OverlayRenderer {
         break;
       case 'tachometer_circular':
         widget = new TachometerCircularWidget({ ...config.bounds });
+        break;
+      case 'tachometer_forza':
+        widget = new TachometerForzaWidget({ ...config.bounds });
         break;
       case 'speedometer':
         widget = new SpeedometerWidget({ ...config.bounds });

@@ -212,8 +212,67 @@ export const TEMPLATE_GT3_COMPETICION: OverlayTemplate = {
   ],
 };
 
+export const TEMPLATE_FORZA_HUD: OverlayTemplate = {
+  schema_version: '1.0.0',
+  id: 'template_forza_hud',
+  name: 'Forza Motorsport HUD (Tacómetro + Marcha + Velocidad)',
+  description: 'Cuadro de instrumentos estilo Forza con tacómetro curvo, marcha en buje central y velocímetro integrado en cursiva.',
+  resolution: { width: 1280, height: 720 },
+  unit_system: 'metric',
+  opacity: 1.0,
+  show_timer: true,
+  widgets: [
+    {
+      id: 'shift_lights',
+      type: 'shift_lights',
+      name: 'Shift Lights',
+      bounds: { x: 450, y: 25, width: 380, height: 44 },
+      visible: true,
+      properties: { pattern: 'left_to_right', flash_hz: 8 },
+    },
+    {
+      id: 'tachometer_forza',
+      type: 'tachometer_forza',
+      name: 'Tacómetro Racing (Estilo Forza)',
+      bounds: { x: 40, y: 420, width: 300, height: 270 },
+      visible: true,
+    },
+    {
+      id: 'brake_throttle',
+      type: 'brake_throttle',
+      name: 'Pedales Freno y Gas',
+      bounds: { x: 360, y: 575, width: 90, height: 110 },
+      visible: true,
+    },
+    {
+      id: 'g_meter',
+      type: 'g_meter',
+      name: 'G-Meter',
+      bounds: { x: 1100, y: 540, width: 145, height: 145 },
+      visible: true,
+      properties: { maxScaleG: 1.5, preferredLongSource: 'IMU' },
+    },
+    {
+      id: 'map',
+      type: 'map',
+      name: 'Trazada GPS (Minimapa)',
+      bounds: { x: 1065, y: 25, width: 180, height: 135 },
+      visible: true,
+      properties: { mode: 'chase_north', zoomMeters: 400 },
+    },
+    {
+      id: 'speed_graph',
+      type: 'speed_graph',
+      name: 'Gráfica de Velocidad',
+      bounds: { x: 470, y: 575, width: 610, height: 110 },
+      visible: true,
+    },
+  ],
+};
+
 export const BUILTIN_TEMPLATES: OverlayTemplate[] = [
   TEMPLATE_MYCHRON_5,
+  TEMPLATE_FORZA_HUD,
   TEMPLATE_GT3_COMPETICION,
   TEMPLATE_MINIMALISTA,
 ];

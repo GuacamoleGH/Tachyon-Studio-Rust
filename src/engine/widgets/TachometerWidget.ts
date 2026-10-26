@@ -167,6 +167,53 @@ export class TachometerCircularWidget implements BaseWidget {
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.fillText('RPM x1000', cx, digitalY + Math.round(18 * scale));
 
+    // 7. Indicador de marcha integrado en el tacómetro circular (recuadro superior central)
+    const speed = snapshot.speedKmh;
+    let gearStr = '-';
+    if (isAvailable && snapshot.speedAvailable && speed !== null) {
+      if (speed < 2.5) {
+        gearStr = rawRpm! > 400 ? 'N' : '0';
+      } else {
+        const ratio = rawRpm! / Math.max(1, speed);
+        if (ratio > 80) gearStr = '1';
+        else if (ratio > 52) gearStr = '2';
+        else if (ratio > 38) gearStr = '3';
+        else if (ratio > 29) gearStr = '4';
+        else if (ratio > 22) gearStr = '5';
+        else gearStr = '6';
+      }
+    }
+
+    const gearY = cy - Math.round(44 * scale);
+    const badgeW = Math.max(24, Math.round(38 * scale));
+    const badgeH = Math.max(24, Math.round(36 * scale));
+    const badgeRadius = Math.max(4, Math.round(6 * scale));
+    const gearFontSize = Math.max(16, Math.round(26 * scale));
+
+    ctx.beginPath();
+    ctx.roundRect(cx - badgeW / 2, gearY - badgeH / 2, badgeW, badgeH, badgeRadius);
+    ctx.fillStyle = 'rgba(10, 14, 18, 0.75)';
+    ctx.fill();
+    ctx.strokeStyle = rawRpm! >= redlineStart ? CockpitColors.neonRed : 'rgba(44, 57, 71, 0.8)';
+    ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
+    ctx.stroke();
+
+    ctx.font = `900 ${gearFontSize}px ui-monospace, SFMono-Regular, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (rawRpm! >= redlineStart) {
+      ctx.fillStyle = CockpitColors.neonRed;
+    } else if (gearStr === 'N') {
+      ctx.fillStyle = CockpitColors.neonAmber;
+    } else if (gearStr === '-') {
+      ctx.fillStyle = CockpitColors.textMuted;
+    } else {
+      ctx.fillStyle = CockpitColors.neonCyan;
+    }
+
+    ctx.fillText(gearStr, cx, gearY);
+
     ctx.restore();
   }
 }

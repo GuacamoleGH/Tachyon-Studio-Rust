@@ -425,6 +425,9 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     if (type === 'tachometer_circular') {
       name = 'Tacómetro Circular';
       bounds = { x: 100, y: 100, width: 240, height: 240 };
+    } else if (type === 'tachometer_forza') {
+      name = 'Tacómetro Racing (Estilo Forza)';
+      bounds = { x: 50, y: 430, width: 280, height: 260 };
     } else if (type === 'shift_lights') {
       name = 'Shift Lights';
       bounds = { x: 300, y: 30, width: 360, height: 44 };
@@ -616,6 +619,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
                 + Añadir widget...
               </option>
               <option value="tachometer_circular">Tacómetro Circular</option>
+              <option value="tachometer_forza">Tacómetro Racing (Estilo Forza)</option>
               <option value="tachometer_bar">Tacómetro de Barra GT</option>
               <option value="shift_lights">Shift Lights</option>
               <option value="gear_indicator">Indicador de Marcha (Gear)</option>

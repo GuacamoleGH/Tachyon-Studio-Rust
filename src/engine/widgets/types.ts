@@ -20,6 +20,7 @@ export interface WidgetRenderContext {
 
 export type WidgetType =
   | 'tachometer_circular'
+  | 'tachometer_forza'
   | 'tachometer_bar'
   | 'shift_lights'
   | 'speedometer'

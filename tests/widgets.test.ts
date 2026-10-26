@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TachometerCircularWidget } from '../src/engine/widgets/TachometerWidget';
+import { TachometerForzaWidget } from '../src/engine/widgets/TachometerForzaWidget';
 import { ShiftLightsWidget } from '../src/engine/widgets/ShiftLightsWidget';
 import { SpeedometerWidget } from '../src/engine/widgets/SpeedometerWidget';
 import { GMeterWidget } from '../src/engine/widgets/GMeterWidget';
@@ -348,5 +349,9 @@ describe('Base Widgets Render Tests', () => {
     expect(() => gBars.render(context)).not.toThrow();
     expect(() => altitude.render(context)).not.toThrow();
     expect(() => compass.render(context)).not.toThrow();
+
+    // Tacómetro estilo Forza Motorsport
+    const forza = new TachometerForzaWidget({ x: 30, y: 440, width: 280, height: 260 });
+    expect(() => forza.render(context)).not.toThrow();
   });
 });

@@ -29,7 +29,7 @@ export const TEMPLATE_MYCHRON_5: OverlayTemplate = {
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
   opacity: 1.0,
-  show_timer: true,
+  show_timer: false,
   widgets: [
     {
       id: 'shift_lights',
@@ -96,7 +96,7 @@ export const TEMPLATE_MINIMALISTA: OverlayTemplate = {
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
   opacity: 0.9,
-  show_timer: true,
+  show_timer: false,
   widgets: [
     {
       id: 'shift_lights',
@@ -140,7 +140,7 @@ export const TEMPLATE_GT3_COMPETICION: OverlayTemplate = {
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
   opacity: 1.0,
-  show_timer: true,
+  show_timer: false,
   widgets: [
     {
       id: 'shift_lights',
@@ -220,7 +220,7 @@ export const TEMPLATE_FORZA_HUD: OverlayTemplate = {
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
   opacity: 1.0,
-  show_timer: true,
+  show_timer: false,
   widgets: [
     {
       id: 'shift_lights',
@@ -278,7 +278,7 @@ export const TEMPLATE_WRC_RALLY: OverlayTemplate = {
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
   opacity: 1.0,
-  show_timer: true,
+  show_timer: false,
   widgets: [
     {
       id: 'session_timer',
@@ -348,7 +348,7 @@ export const TEMPLATE_F1_GT3: OverlayTemplate = {
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
   opacity: 1.0,
-  show_timer: true,
+  show_timer: false,
   widgets: [
     {
       id: 'tachometer_horizontal',
@@ -405,7 +405,7 @@ export const TEMPLATE_TRACKDAY_PRO: OverlayTemplate = {
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
   opacity: 1.0,
-  show_timer: true,
+  show_timer: false,
   widgets: [
     {
       id: 'session_timer',
@@ -475,7 +475,7 @@ export const TEMPLATE_CLEAN_CORNER: OverlayTemplate = {
   resolution: { width: 1280, height: 720 },
   unit_system: 'metric',
   opacity: 1.0,
-  show_timer: true,
+  show_timer: false,
   widgets: [
     {
       id: 'session_timer',

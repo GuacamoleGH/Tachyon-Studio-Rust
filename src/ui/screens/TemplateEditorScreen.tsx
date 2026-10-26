@@ -753,7 +753,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
         </div>
 
         {/* Panel derecho: Inspector de Propiedades */}
-        <div className="lg:col-span-3 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-4">
+        <div className="lg:col-span-3 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-4 self-start h-fit">
           <div className="flex items-center justify-between border-b border-[#2C3947] pb-2.5">
             <span className="text-xs font-mono font-bold text-[#F0F4F8] uppercase flex items-center gap-2">
               <Sliders className="w-4 h-4 text-[#00E676]" />

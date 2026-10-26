@@ -19,9 +19,9 @@ export class CoolantTempWidget implements BaseWidget {
 
     const scale = Math.min(width / 140, height / 75);
     const cornerRadius = Math.max(3, Math.round(8 * scale));
-    const titleFontSize = Math.max(8, Math.round(10 * scale));
-    const valFontSize = Math.max(14, Math.round(24 * scale));
-    const unitFontSize = Math.max(8, Math.round(11 * scale));
+    const titleFontSize = Math.max(10, Math.round(Math.min(width * 0.08, height * 0.16)));
+    const valFontSize = Math.max(26, Math.round(Math.min(width * 0.28, height * 0.52)));
+    const unitFontSize = Math.max(12, Math.round(Math.min(width * 0.11, height * 0.22)));
 
     const coolantSignal = snapshot.signals.coolant_temp_c;
     const isAvailable = coolantSignal?.isAvailable && coolantSignal.value !== null;
@@ -61,21 +61,23 @@ export class CoolantTempWidget implements BaseWidget {
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('TEMP AGUA', x + Math.round(10 * scale), y + Math.round(8 * scale));
+    ctx.fillText('TEMP REFRIGERANTE', x + Math.round(10 * scale), y + Math.round(8 * scale));
 
     // Valor numérico
-    ctx.font = `bold ${valFontSize}px ui-monospace, SFMono-Regular, monospace`;
+    ctx.font = `900 ${valFontSize}px ui-monospace, SFMono-Regular, monospace`;
     ctx.textBaseline = 'middle';
-    const valY = y + height / 2 + Math.round(4 * scale);
+    const valY = y + height / 2 + Math.round(2 * scale);
 
     if (displayVal !== null) {
       ctx.fillStyle = statusColor;
-      ctx.fillText(`${Math.round(displayVal)}`, x + Math.round(10 * scale), valY);
+      const valStr = `${Math.round(displayVal)}`;
+      ctx.fillText(valStr, x + Math.round(10 * scale), valY);
 
-      // Unidad
+      // Unidad (anclada dinámicamente tras el número)
+      const valW = ctx.measureText(valStr).width;
       ctx.font = `bold ${unitFontSize}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = CockpitColors.textSecondary;
-      ctx.fillText(unitLabel, x + Math.round(62 * scale), valY + Math.round(2 * scale));
+      ctx.fillText(unitLabel, x + Math.round(10 * scale) + valW + Math.round(6 * scale), valY + Math.round(2 * scale));
     } else {
       ctx.fillStyle = CockpitColors.textMuted;
       ctx.fillText('N/D', x + Math.round(10 * scale), valY);

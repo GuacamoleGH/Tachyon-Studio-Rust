@@ -36,7 +36,7 @@ export class OverlayRenderer {
   public widgets: BaseWidget[] = [];
   public width: number = 1280;
   public height: number = 720;
-  public showTimer: boolean = true;
+  public showTimer: boolean = false;
   public opacity: number = 1.0;
 
   constructor(width: number = 1280, height: number = 720) {
@@ -180,7 +180,7 @@ export class OverlayRenderer {
       }
     }
 
-    // 2. Cronómetro de tiempo en la esquina superior izquierda
+    // 2. El cronómetro ahora se gestiona de forma modular como un widget independiente (SessionTimerWidget)
     if (this.showTimer) {
       this.renderTimer(ctx, timeSec);
     }
@@ -195,7 +195,7 @@ export class OverlayRenderer {
     this.width = template.resolution.width;
     this.height = template.resolution.height;
     this.opacity = template.opacity ?? 1.0;
-    this.showTimer = template.show_timer ?? true;
+    this.showTimer = template.show_timer ?? false;
 
     this.widgets = template.widgets.map((w) => this.createWidgetInstance(w));
   }

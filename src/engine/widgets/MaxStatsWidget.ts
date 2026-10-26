@@ -25,10 +25,10 @@ export class MaxStatsWidget implements BaseWidget {
 
     const scale = Math.min(width / 230, height / 80);
     const cornerRadius = Math.max(3, Math.round(8 * scale));
-    const titleFontSize = Math.max(8, Math.round(10 * scale));
-    const labelFontSize = Math.max(7, Math.round(9 * scale));
-    const numFontSize = Math.max(14, Math.round(20 * scale));
-    const unitFontSize = Math.max(7, Math.round(9 * scale));
+    const titleFontSize = Math.max(11, Math.round(Math.min(width * 0.055, height * 0.16)));
+    const labelFontSize = Math.max(10, Math.round(Math.min(width * 0.05, height * 0.14)));
+    const numFontSize = Math.max(22, Math.round(Math.min(width * 0.14, height * 0.38)));
+    const unitFontSize = Math.max(9, Math.round(Math.min(width * 0.045, height * 0.13)));
 
     const isImperial = unitSystem === 'imperial';
     const speedUnit = isImperial ? 'MPH' : 'KM/H';
@@ -87,11 +87,12 @@ export class MaxStatsWidget implements BaseWidget {
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('RÉCORDS DE SESIÓN', x + Math.round(10 * scale), y + Math.round(8 * scale));
+    const padX = Math.round(12 * scale);
+    ctx.fillText('RÉCORDS DE SESIÓN', x + padX, y + Math.round(height * 0.1));
 
     // 3 Columnas: V-MAX, LAT G MAX, RPM MAX
-    const colWidth = (width - Math.round(20 * scale)) / 3;
-    const colY = y + Math.round(26 * scale);
+    const colWidth = (width - padX * 2) / 3;
+    const colY = y + Math.round(height * 0.32);
 
     const cols = [
       {
@@ -115,7 +116,7 @@ export class MaxStatsWidget implements BaseWidget {
     ];
 
     cols.forEach((col, idx) => {
-      const colX = x + Math.round(10 * scale) + idx * colWidth;
+      const colX = x + padX + idx * colWidth;
 
       // Sub-etiqueta
       ctx.font = `bold ${labelFontSize}px ui-monospace, SFMono-Regular, monospace`;
@@ -124,18 +125,18 @@ export class MaxStatsWidget implements BaseWidget {
       ctx.textBaseline = 'top';
       ctx.fillText(col.label, colX, colY);
 
-      // Valor
-      ctx.font = `bold ${numFontSize}px ui-monospace, SFMono-Regular, monospace`;
+      // Valor en negrita 900
+      ctx.font = `900 ${numFontSize}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = col.color;
       ctx.textBaseline = 'alphabetic';
-      const numBaseY = y + height - Math.round(14 * scale);
+      const numBaseY = y + height - Math.round(height * 0.16);
       ctx.fillText(col.val, colX, numBaseY);
 
       // Unidad
       const numWidth = ctx.measureText(col.val).width;
       ctx.font = `bold ${unitFontSize}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = CockpitColors.textMuted;
-      ctx.fillText(col.unit, colX + numWidth + Math.round(3 * scale), numBaseY);
+      ctx.fillText(col.unit, colX + numWidth + Math.round(4 * scale), numBaseY);
     });
 
     ctx.restore();

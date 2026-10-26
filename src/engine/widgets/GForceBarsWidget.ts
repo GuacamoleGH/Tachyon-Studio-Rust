@@ -20,8 +20,8 @@ export class GForceBarsWidget implements BaseWidget {
 
     const scale = Math.min(width / 180, height / 90);
     const cornerRadius = Math.max(3, Math.round(6 * scale));
-    const labelFontSize = Math.max(7, Math.round(9 * scale));
-    const valueFontSize = Math.max(9, Math.round(11 * scale));
+    const labelFontSize = Math.max(9, Math.round(Math.min(width * 0.055, height * 0.13)));
+    const valueFontSize = Math.max(11, Math.round(Math.min(width * 0.065, height * 0.15)));
 
     const latG = snapshot.lateralGAvailable && snapshot.lateralG !== null ? snapshot.lateralG : 0;
     const longG = snapshot.longitudinalGAvailable && snapshot.longitudinalG !== null ? snapshot.longitudinalG : 0;
@@ -39,10 +39,13 @@ export class GForceBarsWidget implements BaseWidget {
 
     const pad = Math.max(8, Math.round(10 * scale));
     const contentW = width - pad * 2;
-    const barH = Math.max(8, Math.round(10 * scale));
+    const availH = height - pad * 2;
+    const sectionH = availH / 2;
+    const barH = Math.max(8, Math.round(sectionH * 0.32));
 
-    // 1. Barra Lateral G (Horizontal)
-    const latY = y + pad + 2;
+    // 1. Sección Lateral G (Horizontal)
+    const y1 = y + pad;
+    const latY = y1 + Math.round(2 * scale);
     ctx.font = `bold ${labelFontSize}px ui-monospace, SFMono-Regular, monospace`;
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'left';
@@ -56,7 +59,7 @@ export class GForceBarsWidget implements BaseWidget {
     ctx.fillText(`${latSign}${Math.abs(latG).toFixed(2)}G`, x + width - pad, latY);
 
     // Track de barra lateral
-    const latBarY = latY + Math.round(14 * scale);
+    const latBarY = y1 + Math.round(sectionH * 0.52);
     ctx.fillStyle = 'rgba(44, 57, 71, 0.6)';
     ctx.fillRect(x + pad, latBarY, contentW, barH);
 
@@ -75,8 +78,9 @@ export class GForceBarsWidget implements BaseWidget {
       ctx.fillRect(midX - latFillW, latBarY, latFillW, barH);
     }
 
-    // 2. Barra Longitudinal G (Aceleración / Frenada)
-    const longY = latBarY + barH + Math.round(12 * scale);
+    // 2. Sección Longitudinal G (Aceleración / Frenada)
+    const y2 = y + pad + sectionH;
+    const longY = y2 + Math.round(2 * scale);
     ctx.font = `bold ${labelFontSize}px ui-monospace, SFMono-Regular, monospace`;
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'left';
@@ -91,7 +95,7 @@ export class GForceBarsWidget implements BaseWidget {
     ctx.fillText(`${longPrefix}${Math.abs(longG).toFixed(2)}G`, x + width - pad, longY);
 
     // Track de barra longitudinal
-    const longBarY = longY + Math.round(14 * scale);
+    const longBarY = y2 + Math.round(sectionH * 0.52);
     ctx.fillStyle = 'rgba(44, 57, 71, 0.6)';
     ctx.fillRect(x + pad, longBarY, contentW, barH);
 

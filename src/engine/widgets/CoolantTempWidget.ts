@@ -20,8 +20,8 @@ export class CoolantTempWidget implements BaseWidget {
     const scale = Math.min(width / 140, height / 75);
     const cornerRadius = Math.max(3, Math.round(8 * scale));
     const titleFontSize = Math.max(7, Math.round(Math.min(width * 0.07, height * 0.18)));
-    const valFontSize = Math.max(14, Math.round(Math.min(width * 0.20, height * 0.38)));
-    const unitFontSize = Math.max(7, Math.round(Math.min(width * 0.09, height * 0.18)));
+    const valFontSize = Math.max(16, Math.round(Math.min(width * 0.23, height * 0.43)));
+    const unitFontSize = Math.max(8, Math.round(Math.min(width * 0.10, height * 0.19)));
 
     const coolantSignal = snapshot.signals.coolant_temp_c;
     const isAvailable = coolantSignal?.isAvailable && coolantSignal.value !== null;
@@ -68,7 +68,7 @@ export class CoolantTempWidget implements BaseWidget {
     // Valor numérico posicionado con espacio vertical limpio
     ctx.font = `900 ${valFontSize}px ui-monospace, SFMono-Regular, monospace`;
     ctx.textBaseline = 'alphabetic';
-    const valBaseY = y + height - Math.max(9, Math.round(13 * scale));
+    const valBaseY = y + height - Math.max(8, Math.round(11 * scale));
 
     if (displayVal !== null) {
       ctx.fillStyle = statusColor;

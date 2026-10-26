@@ -11,6 +11,8 @@ import {
   Sparkles,
   Play,
   Pause,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { WidgetBounds, WidgetType } from '../../engine/widgets/types';
 import { OverlayRenderer } from '../../engine/canvas/overlayRenderer';
@@ -78,6 +80,58 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   // Estado de interactividad / simulación
   const [currentTime, setCurrentTime] = useState<number>(10.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+
+  // Historial de cambios para Deshacer / Rehacer (Ctrl+Z / Ctrl+Y)
+  const [undoStack, setUndoStack] = useState<OverlayTemplate[]>([]);
+  const [redoStack, setRedoStack] = useState<OverlayTemplate[]>([]);
+  const dragInitialTemplateRef = useRef<OverlayTemplate | null>(null);
+
+  const pushToUndo = useCallback((prevTemplate: OverlayTemplate) => {
+    setUndoStack((prev) => [...prev.slice(-30), prevTemplate]);
+    setRedoStack([]);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    const previous = undoStack[undoStack.length - 1];
+    setRedoStack((prev) => [...prev, template]);
+    setUndoStack((prev) => prev.slice(0, -1));
+    setTemplate(previous);
+    setSaveMessage('Deshecho (Ctrl+Z)');
+    setTimeout(() => setSaveMessage(null), 1800);
+  }, [undoStack, template]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setUndoStack((prev) => [...prev, template]);
+    setRedoStack((prev) => prev.slice(0, -1));
+    setTemplate(next);
+    setSaveMessage('Rehecho (Ctrl+Y)');
+    setTimeout(() => setSaveMessage(null), 1800);
+  }, [redoStack, template]);
+
+  // Atajos de teclado globales para el editor (Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   // Estado de arrastre y redimensionado
   const [dragMode, setDragMode] = useState<DragMode>('none');
@@ -285,6 +339,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   // Manejo de interacción de ratón (selección, mover, redimensionar)
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const { x, y } = getCanvasCoords(e);
+    dragInitialTemplateRef.current = template;
 
     // 1. Comprobar si se pulsó sobre un manejador del widget seleccionado
     if (selectedWidget && selectedWidget.visible) {
@@ -395,11 +450,16 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   };
 
   const handleMouseUp = () => {
+    if (dragMode !== 'none' && dragInitialTemplateRef.current) {
+      pushToUndo(dragInitialTemplateRef.current);
+      dragInitialTemplateRef.current = null;
+    }
     setDragMode('none');
   };
 
   const updateSelectedBounds = (key: keyof WidgetBounds, val: number) => {
     if (!selectedWidget) return;
+    pushToUndo(template);
     setTemplate((prev) => ({
       ...prev,
       widgets: prev.widgets.map((w) =>
@@ -411,6 +471,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   };
 
   const toggleWidgetVisibility = (id: string) => {
+    pushToUndo(template);
     setTemplate((prev) => ({
       ...prev,
       widgets: prev.widgets.map((w) => (w.id === id ? { ...w, visible: !w.visible } : w)),
@@ -418,6 +479,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   };
 
   const addWidget = (type: WidgetType) => {
+    pushToUndo(template);
     const id = `${type}_${Date.now()}`;
     let name = 'Nuevo Widget';
     let bounds: WidgetBounds = { x: 100, y: 100, width: 200, height: 120 };
@@ -501,6 +563,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
 
   const removeSelectedWidget = () => {
     if (!selectedWidget) return;
+    pushToUndo(template);
     setTemplate((prev) => ({
       ...prev,
       widgets: prev.widgets.filter((w) => w.id !== selectedWidget.id),
@@ -579,6 +642,26 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
             </span>
           )}
 
+          <button
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] disabled:opacity-35 disabled:cursor-not-allowed text-[#F0F4F8] border border-[#2C3947] transition-all cursor-pointer"
+            title="Deshacer (Ctrl+Z)"
+          >
+            <Undo2 className="w-3.5 h-3.5 text-[#00E5FF]" />
+            <span className="hidden sm:inline">Deshacer</span>
+          </button>
+
+          <button
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] disabled:opacity-35 disabled:cursor-not-allowed text-[#F0F4F8] border border-[#2C3947] transition-all cursor-pointer"
+            title="Rehacer (Ctrl+Y)"
+          >
+            <Redo2 className="w-3.5 h-3.5 text-[#00E5FF]" />
+            <span className="hidden sm:inline">Rehacer</span>
+          </button>
+
           <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-all cursor-pointer">
             <Upload className="w-3.5 h-3.5" />
             <span>Importar</span>
@@ -606,14 +689,16 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
       {/* 2. Disposición principal: Capas (izq) | Canvas (centro) | Inspector (der) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* Panel izquierdo: Capas y Añadir widgets */}
-        <div className="lg:col-span-3 xl:col-span-2 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-4">
-          <div className="flex items-center justify-between border-b border-[#2C3947] pb-2.5">
-            <span className="text-xs font-mono font-bold text-[#F0F4F8] uppercase flex items-center gap-2">
-              <Layers className="w-4 h-4 text-[#00E5FF]" />
-              Capas ({template.widgets.length})
-            </span>
+        <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-2 bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-4">
+          <div className="space-y-2.5 border-b border-[#2C3947] pb-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-bold text-[#F0F4F8] uppercase flex items-center gap-2">
+                <Layers className="w-4 h-4 text-[#00E5FF]" />
+                Capas ({template.widgets.length})
+              </span>
+            </div>
 
-            {/* Selector para añadir nuevo widget */}
+            {/* Selector para añadir nuevo widget a ancho completo */}
             <select
               onChange={(e) => {
                 if (e.target.value) {
@@ -622,7 +707,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
                 }
               }}
               defaultValue=""
-              className="bg-[#1A222B] border border-[#2C3947] text-xs font-mono text-[#00E676] rounded px-2 py-1 outline-none cursor-pointer"
+              className="w-full bg-[#1A222B] hover:bg-[#202B37] border border-[#2C3947] text-xs font-mono text-[#00E676] rounded px-2.5 py-1.5 outline-none cursor-pointer transition-colors"
             >
               <option value="" disabled>
                 + Añadir widget...
@@ -707,7 +792,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
         </div>
 
         {/* Panel central: Lienzo de diseño Canvas */}
-        <div className="lg:col-span-6 xl:col-span-7 2xl:col-span-8 flex flex-col space-y-3">
+        <div className="lg:col-span-6 xl:col-span-6 2xl:col-span-8 flex flex-col space-y-3">
           <div
             ref={containerRef}
             className="bg-[#090C0E] border border-[#2C3947] rounded-xl overflow-hidden shadow-2xl relative aspect-video flex items-center justify-center"

@@ -31,6 +31,11 @@ import {
   detectFfmpegCapabilities,
   type FfmpegCapabilities,
 } from '../../core/fs/fileSystemAdapter';
+import {
+  formatTimeMinutes,
+  parseTimeToSeconds,
+  formatDurationHuman,
+} from '../../core/utils/timeFormat';
 
 interface RenderModalProps {
   isOpen: boolean;
@@ -38,6 +43,9 @@ interface RenderModalProps {
   session: SessionBundle;
   profile: VehicleProfile;
   renderer: OverlayRenderer;
+  initialStartSec?: number;
+  initialEndSec?: number;
+  currentTime?: number;
 }
 
 export const RenderModal: React.FC<RenderModalProps> = ({
@@ -46,6 +54,9 @@ export const RenderModal: React.FC<RenderModalProps> = ({
   session,
   profile,
   renderer,
+  initialStartSec,
+  initialEndSec,
+  currentTime,
 }) => {
   const [mode, setMode] = useState<ExportMode>(
     session.hasVideo ? 'mp4_combined' : 'mp4_telemetry_only'
@@ -59,8 +70,81 @@ export const RenderModal: React.FC<RenderModalProps> = ({
       : duration;
 
   const [videoDuration, setVideoDuration] = useState<number | null>(metadataVideoDur || null);
-  const [startSec, setStartSec] = useState<number>(0.0);
-  const [endSec, setEndSec] = useState<number>(initialDuration);
+  const [startSec, setStartSec] = useState<number>(() =>
+    initialStartSec !== undefined ? Math.max(0, initialStartSec) : 0.0
+  );
+  const [endSec, setEndSec] = useState<number>(() =>
+    initialEndSec !== undefined && initialEndSec > 0 ? Math.min(initialDuration, initialEndSec) : initialDuration
+  );
+  const [startInputText, setStartInputText] = useState<string>(() =>
+    formatTimeMinutes(initialStartSec ?? 0.0, true)
+  );
+  const [endInputText, setEndInputText] = useState<string>(() =>
+    formatTimeMinutes(initialEndSec && initialEndSec > 0 ? initialEndSec : initialDuration, true)
+  );
+
+  // Sincronizar rangos cuando se abre el modal con valores del reproductor
+  useEffect(() => {
+    if (isOpen) {
+      const s = initialStartSec !== undefined ? Math.max(0, initialStartSec) : 0.0;
+      const e =
+        initialEndSec !== undefined && initialEndSec > s
+          ? Math.min(initialDuration, initialEndSec)
+          : initialDuration;
+      setStartSec(s);
+      setEndSec(e);
+      setStartInputText(formatTimeMinutes(s, true));
+      setEndInputText(formatTimeMinutes(e, true));
+    }
+  }, [isOpen, initialStartSec, initialEndSec, initialDuration]);
+
+  const updateStartSec = (val: number) => {
+    const clamped = Math.max(0, Math.min(endSec - 0.1, val));
+    setStartSec(clamped);
+    setStartInputText(formatTimeMinutes(clamped, true));
+  };
+
+  const updateEndSec = (val: number) => {
+    const clamped = Math.max(startSec + 0.1, Math.min(initialDuration, val));
+    setEndSec(clamped);
+    setEndInputText(formatTimeMinutes(clamped, true));
+  };
+
+  const handleStartTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const text = e.target.value;
+    setStartInputText(text);
+    const parsed = parseTimeToSeconds(text);
+    if (parsed !== null && parsed >= 0 && parsed < endSec) {
+      setStartSec(parsed);
+    }
+  };
+
+  const handleStartTextBlur = () => {
+    const parsed = parseTimeToSeconds(startInputText);
+    if (parsed !== null && parsed >= 0 && parsed < endSec) {
+      updateStartSec(parsed);
+    } else {
+      setStartInputText(formatTimeMinutes(startSec, true));
+    }
+  };
+
+  const handleEndTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const text = e.target.value;
+    setEndInputText(text);
+    const parsed = parseTimeToSeconds(text);
+    if (parsed !== null && parsed > startSec && parsed <= initialDuration) {
+      setEndSec(parsed);
+    }
+  };
+
+  const handleEndTextBlur = () => {
+    const parsed = parseTimeToSeconds(endInputText);
+    if (parsed !== null && parsed > startSec && parsed <= initialDuration) {
+      updateEndSec(parsed);
+    } else {
+      setEndInputText(formatTimeMinutes(endSec, true));
+    }
+  };
   const [fps, setFps] = useState<number>(30); // 30 FPS por defecto: el estándar en móviles y el doble de rápido
   const [resolution, setResolution] = useState<{ width: number; height: number }>({
     width: 1920,
@@ -435,9 +519,35 @@ export const RenderModal: React.FC<RenderModalProps> = ({
                     2. Selección de Tramo (Inicio y Fin):
                   </span>
                   <span className="text-[#00E676] font-bold">
-                    Duración: {(endSec - startSec).toFixed(1)} segundos
+                    Duración: {formatDurationHuman(endSec - startSec)} ({(endSec - startSec).toFixed(1)}s)
                   </span>
                 </div>
+
+                {/* Si se abrió desde un punto concreto del reproductor, botón rápido */}
+                {currentTime !== undefined && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-[#090C0E] p-2 rounded-lg border border-[#2C3947]/70 text-xs font-mono">
+                    <span className="text-[#8B9CB0]">
+                      Momento actual del reproductor:{' '}
+                      <strong className="text-[#00E5FF] font-bold">{formatTimeMinutes(currentTime, true)}</strong>
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => updateStartSec(currentTime)}
+                        className="px-2 py-0.5 rounded bg-[#1A222B] hover:bg-[#2C3947] text-[#00E5FF] border border-[#00E5FF]/40 text-[11px] font-sans font-semibold cursor-pointer transition-colors"
+                      >
+                        Establecer como Inicio
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateEndSec(currentTime)}
+                        className="px-2 py-0.5 rounded bg-[#1A222B] hover:bg-[#2C3947] text-[#00E676] border border-[#00E676]/40 text-[11px] font-sans font-semibold cursor-pointer transition-colors"
+                      >
+                        Establecer como Fin
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Botones de ajuste rápido de tramo */}
                 <div className="flex flex-wrap gap-1.5 text-[11px]">
@@ -445,30 +555,30 @@ export const RenderModal: React.FC<RenderModalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setStartSec(0);
-                        setEndSec(videoDuration);
+                        updateStartSec(0);
+                        updateEndSec(videoDuration);
                       }}
                       className="px-2.5 py-1 rounded bg-[#090C0E] hover:bg-[#2C3947] text-[#00E5FF] border border-[#00E5FF]/40 transition-colors cursor-pointer"
                     >
-                      🎬 Vídeo completo (0.0s - {videoDuration}s)
+                      🎬 Vídeo completo (00:00 - {formatTimeMinutes(videoDuration)})
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => {
-                      setStartSec(0);
-                      setEndSec(duration);
+                      updateStartSec(0);
+                      updateEndSec(duration);
                     }}
                     className="px-2.5 py-1 rounded bg-[#090C0E] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-colors cursor-pointer"
                   >
-                    📊 Toda la telemetría (0.0s - {duration.toFixed(1)}s)
+                    📊 Toda la telemetría (00:00 - {formatTimeMinutes(duration)})
                   </button>
                   {duration > 15 && (
                     <button
                       type="button"
                       onClick={() => {
-                        setStartSec(0);
-                        setEndSec(Math.min(15, duration));
+                        updateStartSec(0);
+                        updateEndSec(Math.min(15, duration));
                       }}
                       className="px-2.5 py-1 rounded bg-[#090C0E] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-colors cursor-pointer"
                     >
@@ -479,40 +589,84 @@ export const RenderModal: React.FC<RenderModalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setStartSec(0);
-                        setEndSec(Math.min(30, duration));
+                        updateStartSec(0);
+                        updateEndSec(Math.min(30, duration));
                       }}
                       className="px-2.5 py-1 rounded bg-[#090C0E] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-colors cursor-pointer"
                     >
                       ⏱️ 30s
                     </button>
                   )}
+                  {duration > 60 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateStartSec(0);
+                        updateEndSec(Math.min(60, duration));
+                      }}
+                      className="px-2.5 py-1 rounded bg-[#090C0E] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-colors cursor-pointer"
+                    >
+                      ⏱️ 1 min
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label className="block text-[#8B9CB0] text-[11px] mb-1">Segundo Inicial (t_start):</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[#8B9CB0] text-[11px] font-semibold">
+                        Minuto Inicial (t_inicio):
+                      </label>
+                      {currentTime !== undefined && (
+                        <button
+                          type="button"
+                          onClick={() => updateStartSec(currentTime)}
+                          className="text-[10px] text-[#00E5FF] hover:underline cursor-pointer"
+                          title="Poner en el momento actual del vídeo"
+                        >
+                          Momento actual
+                        </button>
+                      )}
+                    </div>
                     <input
-                      type="number"
-                      step={0.5}
-                      min={0}
-                      max={endSec - 0.5}
-                      value={startSec}
-                      onChange={(e) => setStartSec(Math.max(0, parseFloat(e.target.value) || 0))}
-                      className="w-full bg-[#090C0E] border border-[#2C3947] rounded px-2.5 py-1.5 text-[#F0F4F8] outline-none"
+                      type="text"
+                      placeholder="mm:ss (ej. 01:07)"
+                      value={startInputText}
+                      onChange={handleStartTextChange}
+                      onBlur={handleStartTextBlur}
+                      className="w-full bg-[#090C0E] border border-[#2C3947] focus:border-[#00E5FF] rounded px-2.5 py-1.5 text-[#00E5FF] font-mono text-sm outline-none transition-colors"
                     />
+                    <span className="block text-[10px] text-[#8B9CB0] mt-0.5 font-mono">
+                      {startSec.toFixed(1)} segundos ({formatTimeMinutes(startSec)})
+                    </span>
                   </div>
                   <div>
-                    <label className="block text-[#8B9CB0] text-[11px] mb-1">Segundo Final (t_end):</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[#8B9CB0] text-[11px] font-semibold">
+                        Minuto Final (t_fin):
+                      </label>
+                      {currentTime !== undefined && (
+                        <button
+                          type="button"
+                          onClick={() => updateEndSec(currentTime)}
+                          className="text-[10px] text-[#00E676] hover:underline cursor-pointer"
+                          title="Poner en el momento actual del vídeo"
+                        >
+                          Momento actual
+                        </button>
+                      )}
+                    </div>
                     <input
-                      type="number"
-                      step={0.5}
-                      min={startSec + 0.5}
-                      max={duration}
-                      value={endSec}
-                      onChange={(e) => setEndSec(Math.min(duration, parseFloat(e.target.value) || duration))}
-                      className="w-full bg-[#090C0E] border border-[#2C3947] rounded px-2.5 py-1.5 text-[#F0F4F8] outline-none"
+                      type="text"
+                      placeholder="mm:ss (ej. 14:02)"
+                      value={endInputText}
+                      onChange={handleEndTextChange}
+                      onBlur={handleEndTextBlur}
+                      className="w-full bg-[#090C0E] border border-[#2C3947] focus:border-[#00E676] rounded px-2.5 py-1.5 text-[#00E676] font-mono text-sm outline-none transition-colors"
                     />
+                    <span className="block text-[10px] text-[#8B9CB0] mt-0.5 font-mono">
+                      {endSec.toFixed(1)} segundos ({formatTimeMinutes(endSec)})
+                    </span>
                   </div>
                 </div>
 
@@ -521,9 +675,8 @@ export const RenderModal: React.FC<RenderModalProps> = ({
                   <span>
                     Total a codificar:{' '}
                     <strong className="text-[#00E5FF]">
-                      {Math.max(1, Math.round((endSec - startSec) * fps))} fotogramas
-                    </strong>{' '}
-                    a {fps} FPS
+                      {formatDurationHuman(endSec - startSec)} ({Math.max(1, Math.round((endSec - startSec) * fps))} fotogramas a {fps} FPS)
+                    </strong>
                   </span>
                   <span>
                     Tiempo estimado:{' '}

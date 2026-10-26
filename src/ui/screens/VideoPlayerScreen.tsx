@@ -15,6 +15,7 @@ import {
   Cpu,
   Upload,
   Zap,
+  Clock,
 } from 'lucide-react';
 import { SessionBundle } from '../../core/model/session';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
@@ -23,6 +24,7 @@ import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR, l
 import { OverlayTemplate, loadTemplateFromStorage as loadStoredTemplate, TEMPLATE_MYCHRON_5 } from '../../core/templates/templateModel';
 import { MapTileManager } from '../../engine/maps/MapTileManager';
 import { RenderModal } from './RenderModal';
+import { formatTimeMinutes, formatDurationHuman } from '../../core/utils/timeFormat';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import {
   isTauriEnvironment,
@@ -78,6 +80,38 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
   const [overlayOpacity, setOverlayOpacity] = useState<number>(1.0);
   const [isRenderModalOpen, setIsRenderModalOpen] = useState<boolean>(false);
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
+
+  // Puntos de corte para la exportación de vídeo (Inicio / Fin)
+  const [exportStartSec, setExportStartSec] = useState<number>(0.0);
+  const [exportEndSec, setExportEndSec] = useState<number>(() => session.durationSec || 90.0);
+
+  // Sincronizar fin de exportación si la duración cambia (p.ej. al cargar vídeo)
+  useEffect(() => {
+    if (duration > 0 && (exportEndSec === 0 || exportEndSec === 90.0)) {
+      setExportEndSec(duration);
+    }
+  }, [duration]);
+
+  const handleSetStart = () => {
+    const s = Math.max(0, currentTime);
+    setExportStartSec(s);
+    if (exportEndSec <= s) {
+      setExportEndSec(Math.min(duration, s + 5.0));
+    }
+  };
+
+  const handleSetEnd = () => {
+    const e = Math.min(duration, currentTime);
+    setExportEndSec(e);
+    if (exportStartSec >= e) {
+      setExportStartSec(Math.max(0, e - 5.0));
+    }
+  };
+
+  const handleResetExportRange = () => {
+    setExportStartSec(0.0);
+    setExportEndSec(duration);
+  };
 
   const handleAutoExtractVideo = useCallback(async () => {
     if (!session.videoZipPath || !session.videoFileName) return;
@@ -460,6 +494,14 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
             <span className="text-[#F0F4F8] w-7">{Math.round(overlayOpacity * 100)}%</span>
           </div>
 
+          {/* Indicador de corte de exportación si está personalizado */}
+          {(exportStartSec > 0 || (duration > 0 && exportEndSec < duration)) && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1A222B] border border-[#00E676]/40 text-xs font-mono text-[#00E676]">
+              <span>Corte: {formatTimeMinutes(exportStartSec)} - {formatTimeMinutes(exportEndSec)}</span>
+              <span className="text-[#8B9CB0] text-[10px]">({formatDurationHuman(exportEndSec - exportStartSec)})</span>
+            </div>
+          )}
+
           <button
             onClick={() => {
               if (isPlaying) togglePlay();
@@ -592,6 +634,20 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
               className="w-full accent-[#00E676] cursor-pointer"
             />
 
+            {/* Rango de exportación resaltado visualmente en la línea de tiempo */}
+            {duration > 0 && (exportStartSec > 0 || exportEndSec < duration) && (
+              <div className="h-1.5 w-full bg-[#090C0E] rounded relative overflow-hidden mt-0.5">
+                <div
+                  style={{
+                    left: `${(exportStartSec / duration) * 100}%`,
+                    width: `${Math.max(0.6, ((exportEndSec - exportStartSec) / duration) * 100)}%`,
+                  }}
+                  className="absolute top-0 bottom-0 bg-gradient-to-r from-[#00E5FF] to-[#00E676] rounded"
+                  title={`Corte seleccionado: ${formatTimeMinutes(exportStartSec)} a ${formatTimeMinutes(exportEndSec)}`}
+                />
+              </div>
+            )}
+
             {/* Eventos de corte dibujados sobre la barra */}
             {session.events.length > 0 && duration > 0 && (
               <div className="h-1.5 w-full bg-[#090C0E] rounded relative overflow-hidden mt-0.5">
@@ -613,9 +669,46 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
             )}
           </div>
 
-          <div className="flex justify-between text-xs font-mono text-[#8B9CB0]">
-            <span className="text-[#00E5FF] font-bold">{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-[#8B9CB0]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#00E5FF] font-bold">{formatTime(currentTime)}</span>
+              <span>/</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+
+            {/* Botones Establecer Inicio y Establecer Fin para exportación */}
+            <div className="flex items-center gap-1.5 font-sans">
+              <button
+                type="button"
+                onClick={handleSetStart}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1A222B] hover:bg-[#202B37] text-[#00E5FF] border border-[#00E5FF]/40 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:border-[#00E5FF]"
+                title="Establecer posición actual como punto de inicio de exportación"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Establecer Inicio ({formatTimeMinutes(exportStartSec)})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSetEnd}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1A222B] hover:bg-[#202B37] text-[#00E676] border border-[#00E676]/40 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:border-[#00E676]"
+                title="Establecer posición actual como punto final de exportación"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Establecer Fin ({formatTimeMinutes(exportEndSec)})</span>
+              </button>
+
+              {(exportStartSec > 0 || (duration > 0 && exportEndSec < duration)) && (
+                <button
+                  type="button"
+                  onClick={handleResetExportRange}
+                  className="px-2 py-1 rounded-lg bg-[#1A222B] hover:bg-[#FF1744]/20 text-[#8B9CB0] hover:text-[#FF1744] border border-[#2C3947] text-xs transition-colors cursor-pointer"
+                  title="Restablecer corte a todo el vídeo"
+                >
+                  ✕ Restablecer
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -716,6 +809,9 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
         session={session}
         profile={profile}
         renderer={overlayRenderer}
+        initialStartSec={exportStartSec}
+        initialEndSec={exportEndSec > 0 ? exportEndSec : duration}
+        currentTime={currentTime}
       />
     </div>
   );

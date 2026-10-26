@@ -37,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 TACHYON<span className="text-[#00E676]">.</span>STUDIO
               </span>
               <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-[#1A222B] text-[#00E5FF] border border-[#2C3947]">
-                v1.9 PC
+                v2.0 PC
               </span>
             </div>
             <p className="text-xs text-[#8B9CB0] truncate max-w-xs">

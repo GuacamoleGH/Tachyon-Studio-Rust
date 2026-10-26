@@ -68,20 +68,55 @@ export class CoolantTempWidget implements BaseWidget {
     ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
     ctx.stroke();
 
+    // Determinar título adaptable según espacio disponible y evitar cualquier superposición
+    const fullTitle = 'TEMP REFRIGERANTE';
+    const shortTitle = 'REFRIGERANTE';
+    const compactTitle = 'REFRIG.';
+    const badgeText = `[ ${statusLabel} ]`;
+
+    // Medición exacta para garantizar que nunca colisionen
+    const badgeFontSize = Math.max(8, Math.round(titleFontSize * 0.88));
+    ctx.font = `bold ${badgeFontSize}px ui-monospace, SFMono-Regular, monospace`;
+    const badgeW = ctx.measureText(badgeText).width;
+
+    ctx.font = `bold ${titleFontSize}px ui-monospace, SFMono-Regular, monospace`;
+    const fullTitleW = ctx.measureText(fullTitle).width;
+    const shortTitleW = ctx.measureText(shortTitle).width;
+    const availableTopW = width - padX * 2;
+
+    let titleToRender = fullTitle;
+    let showBadge = false;
+
+    if (fullTitleW + badgeW + 12 <= availableTopW) {
+      titleToRender = fullTitle;
+      showBadge = true;
+    } else if (shortTitleW + badgeW + 12 <= availableTopW) {
+      titleToRender = shortTitle;
+      showBadge = true;
+    } else if (fullTitleW <= availableTopW) {
+      titleToRender = fullTitle;
+      showBadge = false;
+    } else if (shortTitleW <= availableTopW) {
+      titleToRender = shortTitle;
+      showBadge = false;
+    } else {
+      titleToRender = compactTitle;
+      showBadge = false;
+    }
+
     // Título
     ctx.font = `bold ${titleFontSize}px ui-monospace, SFMono-Regular, monospace`;
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('TEMP REFRIGERANTE', x + padX, y + padY);
+    ctx.fillText(titleToRender, x + padX, y + padY);
 
-    // Estado en la esquina superior derecha si hay suficiente ancho
-    if (width > 160) {
-      const badgeFontSize = Math.max(8, Math.round(titleFontSize * 0.9));
+    // Estado en la esquina superior derecha sólo si no hay solapamiento
+    if (showBadge) {
       ctx.font = `bold ${badgeFontSize}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = statusColor;
       ctx.textAlign = 'right';
-      ctx.fillText(`[ ${statusLabel} ]`, x + width - padX, y + padY);
+      ctx.fillText(badgeText, x + width - padX, y + padY);
     }
 
     // Valor numérico posicionado de forma equilibrada ocupando el centro vertical

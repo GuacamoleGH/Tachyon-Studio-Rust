@@ -15,12 +15,21 @@ import {
   saveProfileToStorage,
   PRESET_GASOLINA_ESTANDAR,
 } from './core/profile/vehicleProfile';
+import {
+  OverlayTemplate,
+  loadTemplateFromStorage as loadStoredTemplate,
+  saveTemplateToStorage as saveStoredTemplate,
+  TEMPLATE_MYCHRON_5,
+} from './core/templates/templateModel';
 
 export const App: React.FC = () => {
   const [session, setSession] = useState<SessionBundle | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>('summary');
   const [currentProfile, setCurrentProfile] = useState<VehicleProfile>(() => {
     return loadProfileFromStorage() || PRESET_GASOLINA_ESTANDAR;
+  });
+  const [currentTemplate, setCurrentTemplate] = useState<OverlayTemplate>(() => {
+    return loadStoredTemplate() || TEMPLATE_MYCHRON_5;
   });
   const [isLoading, setIsLoading] = useState(false);
   const [progressText, setProgressText] = useState('');
@@ -168,9 +177,21 @@ export const App: React.FC = () => {
             }}
           />
         ) : activeTab === 'editor' ? (
-          <TemplateEditorScreen session={session} profile={currentProfile} />
+          <TemplateEditorScreen
+            session={session}
+            profile={currentProfile}
+            template={currentTemplate}
+            onTemplateUpdated={(updated) => {
+              setCurrentTemplate(updated);
+              saveStoredTemplate(updated);
+            }}
+          />
         ) : activeTab === 'player' && session ? (
-          <VideoPlayerScreen session={session} profile={currentProfile} />
+          <VideoPlayerScreen
+            session={session}
+            profile={currentProfile}
+            template={currentTemplate}
+          />
         ) : !session ? (
           <ZipDropzone
             onFileSelected={handleProcessFile}

@@ -30,11 +30,18 @@ import { CockpitColors } from '../../core/theme/colors';
 interface TemplateEditorScreenProps {
   session?: SessionBundle | null;
   profile?: VehicleProfile;
+  template?: OverlayTemplate;
+  onTemplateUpdated?: (template: OverlayTemplate) => void;
 }
 
 type DragMode = 'none' | 'move' | 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
-export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({ session, profile: propProfile }) => {
+export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
+  session,
+  profile: propProfile,
+  template: propTemplate,
+  onTemplateUpdated,
+}) => {
   const profile = useMemo(() => {
     if (propProfile) return propProfile;
     const stored = loadProfileFromStorage();
@@ -55,9 +62,15 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({ sess
 
   // Inicializar plantilla
   const [template, setTemplate] = useState<OverlayTemplate>(() => {
-    const saved = loadTemplateFromStorage();
-    return saved || TEMPLATE_MYCHRON_5;
+    return propTemplate || loadTemplateFromStorage() || TEMPLATE_MYCHRON_5;
   });
+
+  // Sincronizar si propTemplate cambia desde el exterior
+  useEffect(() => {
+    if (propTemplate && propTemplate.id !== template.id) {
+      setTemplate(propTemplate);
+    }
+  }, [propTemplate]);
 
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>('tachometer_circular');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -442,6 +455,18 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({ sess
     } else if (type === 'tachometer_bar') {
       name = 'Tacómetro de Barra GT';
       bounds = { x: 200, y: 350, width: 380, height: 45 };
+    } else if (type === 'session_timer') {
+      name = 'Cronómetro de Tiempo';
+      bounds = { x: 35, y: 25, width: 140, height: 44 };
+    } else if (type === 'g_force_bars') {
+      name = 'Barras de Fuerzas G';
+      bounds = { x: 300, y: 150, width: 180, height: 90 };
+    } else if (type === 'altitude') {
+      name = 'Altitud GPS';
+      bounds = { x: 100, y: 150, width: 140, height: 75 };
+    } else if (type === 'compass') {
+      name = 'Brújula / Rumbo GPS';
+      bounds = { x: 450, y: 150, width: 120, height: 120 };
     }
 
     // Escalar bounds si la resolución actual no es 720p
@@ -473,8 +498,9 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({ sess
 
   const handleSaveTemplate = () => {
     saveTemplateToStorage(template);
-    setSaveMessage('¡Plantilla guardada con éxito!');
-    setTimeout(() => setSaveMessage(null), 3000);
+    onTemplateUpdated?.(template);
+    setSaveMessage('¡Plantilla guardada y aplicada al reproductor con éxito!');
+    setTimeout(() => setSaveMessage(null), 3500);
   };
 
   const handleExportJson = () => {
@@ -497,6 +523,10 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({ sess
           const parsed = JSON.parse(event.target?.result as string);
           if (parsed.widgets && Array.isArray(parsed.widgets)) {
             setTemplate(parsed);
+            saveTemplateToStorage(parsed);
+            onTemplateUpdated?.(parsed);
+            setSaveMessage(`¡Plantilla "${parsed.name || 'importada'}" cargada y aplicada con éxito!`);
+            setTimeout(() => setSaveMessage(null), 3500);
           } else {
             alert('El archivo no contiene una plantilla válida.');
           }
@@ -596,6 +626,10 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({ sess
               <option value="g_meter">G-Meter</option>
               <option value="map">Trazada GPS</option>
               <option value="speed_graph">Gráfica Velocidad</option>
+              <option value="session_timer">Cronómetro de Tiempo</option>
+              <option value="g_force_bars">Barras de Fuerzas G</option>
+              <option value="altitude">Altitud GPS</option>
+              <option value="compass">Brújula / Rumbo GPS</option>
             </select>
           </div>
 
@@ -641,6 +675,10 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({ sess
                   onClick={() => {
                     setTemplate(bt);
                     setSelectedWidgetId(bt.widgets[0]?.id || null);
+                    saveTemplateToStorage(bt);
+                    onTemplateUpdated?.(bt);
+                    setSaveMessage(`¡Plantilla "${bt.name}" activada y aplicada al reproductor!`);
+                    setTimeout(() => setSaveMessage(null), 3000);
                   }}
                   className="px-2.5 py-1.5 rounded text-left text-xs font-mono bg-[#1A222B] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-colors flex items-center justify-between"
                 >

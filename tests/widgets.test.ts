@@ -8,6 +8,10 @@ import { CoolantTempWidget } from '../src/engine/widgets/CoolantTempWidget';
 import { BrakeThrottleWidget } from '../src/engine/widgets/BrakeThrottleWidget';
 import { TachometerBarWidget } from '../src/engine/widgets/TachometerBarWidget';
 import { MapWidget } from '../src/engine/widgets/MapWidget';
+import { SessionTimerWidget } from '../src/engine/widgets/SessionTimerWidget';
+import { GForceBarsWidget } from '../src/engine/widgets/GForceBarsWidget';
+import { AltitudeWidget } from '../src/engine/widgets/AltitudeWidget';
+import { CompassWidget } from '../src/engine/widgets/CompassWidget';
 import { PRESET_GASOLINA_ESTANDAR } from '../src/core/profile/vehicleProfile';
 import { TelemetrySnapshot } from '../src/core/telemetry/timeEngine';
 import { STANDARD_SIGNALS, StandardSignalKey } from '../src/core/model/telemetry';
@@ -24,6 +28,9 @@ function createMockCtx(): any {
     moveTo: () => {},
     lineTo: () => {},
     roundRect: () => {},
+    fillRect: () => {},
+    strokeRect: () => {},
+    clearRect: () => {},
     fillText: () => {},
     clip: () => {},
     translate: () => {},
@@ -304,5 +311,42 @@ describe('Base Widgets Render Tests', () => {
     });
 
     expect(map.mode).toBe('full_circuit');
+  });
+
+  it('renderiza con éxito los nuevos widgets: SessionTimer, GForceBars, Altitude y Compass', () => {
+    const ctx = createMockCtx();
+    const snap = createSnapshot(3500, 80, 0.5);
+    snap.signals.altitude_m = {
+      key: 'altitude_m',
+      value: 650,
+      isAvailable: true,
+      status: 'VALID',
+      unit: 'm',
+      category: 'GPS',
+      label: 'Altitud',
+    };
+    snap.bearingDeg = 180;
+    snap.bearingAvailable = true;
+    snap.lateralG = 1.25;
+    snap.lateralGAvailable = true;
+    snap.longitudinalG = -0.85;
+    snap.longitudinalGAvailable = true;
+
+    const timer = new SessionTimerWidget({ x: 20, y: 20, width: 140, height: 44 });
+    const gBars = new GForceBarsWidget({ x: 20, y: 70, width: 180, height: 90 });
+    const altitude = new AltitudeWidget({ x: 20, y: 170, width: 140, height: 75 });
+    const compass = new CompassWidget({ x: 20, y: 250, width: 120, height: 120 });
+
+    const context = {
+      ctx,
+      snapshot: snap,
+      profile,
+      timeSec: 125.4,
+    };
+
+    expect(() => timer.render(context)).not.toThrow();
+    expect(() => gBars.render(context)).not.toThrow();
+    expect(() => altitude.render(context)).not.toThrow();
+    expect(() => compass.render(context)).not.toThrow();
   });
 });

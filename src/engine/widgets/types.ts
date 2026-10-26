@@ -29,7 +29,11 @@ export type WidgetType =
   | 'coolant_temp'
   | 'g_meter'
   | 'map'
-  | 'speed_graph';
+  | 'speed_graph'
+  | 'session_timer'
+  | 'g_force_bars'
+  | 'altitude'
+  | 'compass';
 
 export interface BaseWidget {
   id: string;

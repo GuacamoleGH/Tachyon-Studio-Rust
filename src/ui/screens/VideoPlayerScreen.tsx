@@ -20,6 +20,7 @@ import { SessionBundle } from '../../core/model/session';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { OverlayRenderer } from '../../engine/canvas/overlayRenderer';
 import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR, loadProfileFromStorage } from '../../core/profile/vehicleProfile';
+import { OverlayTemplate, loadTemplateFromStorage as loadStoredTemplate, TEMPLATE_MYCHRON_5 } from '../../core/templates/templateModel';
 import { RenderModal } from './RenderModal';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import {
@@ -33,9 +34,10 @@ import {
 interface VideoPlayerScreenProps {
   session: SessionBundle;
   profile?: VehicleProfile;
+  template?: OverlayTemplate;
 }
 
-export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, profile: propProfile }) => {
+export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, profile: propProfile, template: propTemplate }) => {
   const profile = useMemo(() => {
     if (propProfile) return propProfile;
     const stored = loadProfileFromStorage();
@@ -47,7 +49,13 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
   }, [propProfile, session]);
 
   const engine = useMemo(() => TimeEngine.fromBundle(session), [session]);
-  const overlayRenderer = useMemo(() => new OverlayRenderer(1280, 720), []);
+
+  const overlayRenderer = useMemo(() => {
+    const tpl = propTemplate || loadStoredTemplate() || TEMPLATE_MYCHRON_5;
+    const r = new OverlayRenderer(tpl.resolution.width, tpl.resolution.height);
+    r.applyTemplate(tpl);
+    return r;
+  }, [propTemplate]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -212,13 +220,21 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
 
     if (session.hasVideo && video) {
       let isCallbackActive = true;
+      let lastReactTimeUpdate = 0;
 
       const onFrame = () => {
         if (!isCallbackActive) return;
         if (!video.paused && !video.ended) {
           const t = video.currentTime;
-          setCurrentTime(t);
           drawOverlayFrame(t);
+
+          // Throttling del estado de React a ~4 Hz para no disparar 60 re-renders
+          // de todo el componente por segundo, liberando la CPU para el canvas y vídeo
+          const now = performance.now();
+          if (now - lastReactTimeUpdate > 250) {
+            lastReactTimeUpdate = now;
+            setCurrentTime(t);
+          }
 
           if ('requestVideoFrameCallback' in video) {
             (video as any).requestVideoFrameCallback(onFrame);

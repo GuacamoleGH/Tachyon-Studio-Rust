@@ -21,6 +21,9 @@ export class MapWidget implements BaseWidget {
 
   // Caché de la caja delimitadora global de coordenadas de la sesión
   private boundsCache: { minLat: number; maxLat: number; minLon: number; maxLon: number } | null = null;
+  // Caché de puntos GPS válidos para evitar recorrer 50.000 muestras con nulos en cada frame
+  private cachedGpsPoints: { lat: number; lon: number }[] | null = null;
+  private cachedSourcePointsRef: any = null;
 
   constructor(bounds: WidgetBounds = { x: 330, y: 150, width: 200, height: 150 }) {
     this.bounds = bounds;
@@ -74,6 +77,32 @@ export class MapWidget implements BaseWidget {
       return;
     }
 
+    // Inicializar o refrescar caché de puntos GPS válidos una sola vez
+    if (this.cachedSourcePointsRef !== allPoints || !this.cachedGpsPoints) {
+      this.cachedSourcePointsRef = allPoints;
+      const validPoints: { lat: number; lon: number }[] = [];
+      let lastLat = 0;
+      let lastLon = 0;
+      for (let i = 0; i < allPoints.length; i++) {
+        const p = allPoints[i];
+        if (p.latitude != null && p.longitude != null) {
+          // Filtrar puntos repetidos idénticos para reducir la carga de dibujo
+          if (Math.abs(p.latitude - lastLat) > 0.000005 || Math.abs(p.longitude - lastLon) > 0.000005) {
+            validPoints.push({ lat: p.latitude, lon: p.longitude });
+            lastLat = p.latitude;
+            lastLon = p.longitude;
+          }
+        }
+      }
+      this.cachedGpsPoints = validPoints;
+    }
+
+    const gpsPoints = this.cachedGpsPoints;
+    if (gpsPoints.length === 0) {
+      ctx.restore();
+      return;
+    }
+
     // =========================================================================
     // MODO 1: MINIMAPA DINÁMICO DE VIDEOJUEGO (CHASE ZOOM)
     // =========================================================================
@@ -92,18 +121,16 @@ export class MapWidget implements BaseWidget {
       const mPerLon = 111139 * Math.cos(radLat);
 
       const rotateWithHeading = this.mode === 'chase_heading';
-      // Para que el rumbo del coche quede apuntando hacia arriba, rotamos el circuito por -heading
       const rotRad = rotateWithHeading ? (-headingDeg * Math.PI) / 180 : 0;
       const cosR = Math.cos(rotRad);
       const sinR = Math.sin(rotRad);
 
-      // Máscara de recorte para que el trazado ampliado no se desborde del panel
       ctx.save();
       ctx.beginPath();
       ctx.roundRect(x, y, width, height, cornerRadius);
       ctx.clip();
 
-      // Círculos de radar concéntricos sutiles estilo juego de conducción
+      // Círculos de radar concéntricos
       ctx.beginPath();
       ctx.arc(cx, cy, radarRadius * 0.5, 0, Math.PI * 2);
       ctx.arc(cx, cy, radarRadius, 0, Math.PI * 2);
@@ -122,10 +149,22 @@ export class MapWidget implements BaseWidget {
       ctx.strokeStyle = 'rgba(44, 57, 71, 0.3)';
       ctx.stroke();
 
-      // Proyección del trazado
-      const projectChase = (lat: number, lon: number): { px: number; py: number } => {
-        const dx = (lon - carLon) * mPerLon;
-        const dy = (lat - carLat) * mPerLat;
+      // Límite de distancia en metros para descartar puntos lejanos fuera de pantalla
+      const maxDistM = this.zoomMeters * 2.2;
+
+      // Paso de muestreo adaptativo si la sesión tiene miles de puntos
+      const stride = gpsPoints.length > 3000 ? Math.ceil(gpsPoints.length / 3000) : 1;
+      const projected: { px: number; py: number }[] = [];
+
+      for (let i = 0; i < gpsPoints.length; i += stride) {
+        const pt = gpsPoints[i];
+        const dx = (pt.lon - carLon) * mPerLon;
+        const dy = (pt.lat - carLat) * mPerLat;
+
+        // Culling rápido en coordenadas cartesianas locales antes de rotar
+        if (Math.abs(dx) > maxDistM || Math.abs(dy) > maxDistM) {
+          continue;
+        }
 
         let rx = dx;
         let ry = dy;
@@ -134,62 +173,37 @@ export class MapWidget implements BaseWidget {
           ry = dx * sinR + dy * cosR;
         }
 
-        return {
+        projected.push({
           px: cx + rx * scaleM,
-          py: cy - ry * scaleM, // En pantalla Y crece hacia abajo, norte/adelante es hacia arriba
-        };
-      };
-
-      // 1. Dibujar pista base ancha
-      ctx.beginPath();
-      let started = false;
-      for (let i = 0; i < allPoints.length; i++) {
-        const p = allPoints[i];
-        if (p.latitude != null && p.longitude != null) {
-          const { px, py } = projectChase(p.latitude, p.longitude);
-          if (!started) {
-            ctx.moveTo(px, py);
-            started = true;
-          } else {
-            ctx.lineTo(px, py);
-          }
-        }
+          py: cy - ry * scaleM,
+        });
       }
-      ctx.strokeStyle = 'rgba(0, 229, 255, 0.3)';
-      ctx.lineWidth = Math.max(3.5, Math.round(5.5 * scale));
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
 
-      // 2. Línea central luminosa
-      ctx.beginPath();
-      started = false;
-      for (let i = 0; i < allPoints.length; i++) {
-        const p = allPoints[i];
-        if (p.latitude != null && p.longitude != null) {
-          const { px, py } = projectChase(p.latitude, p.longitude);
-          if (!started) {
-            ctx.moveTo(px, py);
-            started = true;
-          } else {
-            ctx.lineTo(px, py);
-          }
+      if (projected.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(projected[0].px, projected[0].py);
+        for (let i = 1; i < projected.length; i++) {
+          ctx.lineTo(projected[i].px, projected[i].py);
         }
-      }
-      ctx.strokeStyle = CockpitColors.neonCyan;
-      ctx.lineWidth = Math.max(1.5, Math.round(2.5 * scale));
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
 
-      // 3. Vehículo centrado en (cx, cy) - Puntito limpio de alta visibilidad
-      // Halo exterior difuso
+        // Dibujar trazado: 1º halo exterior brillante, 2º línea central
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.28)';
+        ctx.lineWidth = Math.max(3.5, Math.round(5.5 * scale));
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        ctx.strokeStyle = CockpitColors.neonCyan;
+        ctx.lineWidth = Math.max(1.5, Math.round(2.5 * scale));
+        ctx.stroke();
+      }
+
+      // Vehículo centrado en (cx, cy)
       ctx.beginPath();
       ctx.arc(cx, cy, Math.max(7, Math.round(10 * scale)), 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0, 230, 118, 0.3)';
       ctx.fill();
 
-      // Círculo verde neón con borde blanco
       ctx.beginPath();
       ctx.arc(cx, cy, Math.max(4, Math.round(5.5 * scale)), 0, Math.PI * 2);
       ctx.fillStyle = CockpitColors.neonGreen;
@@ -198,7 +212,6 @@ export class MapWidget implements BaseWidget {
       ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
       ctx.stroke();
 
-      // Núcleo blanco brillante
       ctx.beginPath();
       ctx.arc(cx, cy, Math.max(1.5, Math.round(2 * scale)), 0, Math.PI * 2);
       ctx.fillStyle = '#FFFFFF';
@@ -218,14 +231,12 @@ export class MapWidget implements BaseWidget {
         minLon = Infinity,
         maxLon = -Infinity;
 
-      for (let i = 0; i < allPoints.length; i++) {
-        const p = allPoints[i];
-        if (p.latitude != null && p.longitude != null) {
-          if (p.latitude < minLat) minLat = p.latitude;
-          if (p.latitude > maxLat) maxLat = p.latitude;
-          if (p.longitude < minLon) minLon = p.longitude;
-          if (p.longitude > maxLon) maxLon = p.longitude;
-        }
+      for (let i = 0; i < gpsPoints.length; i++) {
+        const pt = gpsPoints[i];
+        if (pt.lat < minLat) minLat = pt.lat;
+        if (pt.lat > maxLat) maxLat = pt.lat;
+        if (pt.lon < minLon) minLon = pt.lon;
+        if (pt.lon > maxLon) maxLon = pt.lon;
       }
 
       if (isFinite(minLat)) {
@@ -258,16 +269,14 @@ export class MapWidget implements BaseWidget {
     ctx.beginPath();
     let started = false;
 
-    for (let i = 0; i < allPoints.length; i++) {
-      const p = allPoints[i];
-      if (p.latitude != null && p.longitude != null) {
-        const { px, py } = project(p.latitude, p.longitude);
-        if (!started) {
-          ctx.moveTo(px, py);
-          started = true;
-        } else {
-          ctx.lineTo(px, py);
-        }
+    for (let i = 0; i < gpsPoints.length; i++) {
+      const pt = gpsPoints[i];
+      const { px, py } = project(pt.lat, pt.lon);
+      if (!started) {
+        ctx.moveTo(px, py);
+        started = true;
+      } else {
+        ctx.lineTo(px, py);
       }
     }
 

@@ -10,6 +10,10 @@ import { GearIndicatorWidget } from '../widgets/GearIndicatorWidget';
 import { CoolantTempWidget } from '../widgets/CoolantTempWidget';
 import { BrakeThrottleWidget } from '../widgets/BrakeThrottleWidget';
 import { TachometerBarWidget } from '../widgets/TachometerBarWidget';
+import { SessionTimerWidget } from '../widgets/SessionTimerWidget';
+import { GForceBarsWidget } from '../widgets/GForceBarsWidget';
+import { AltitudeWidget } from '../widgets/AltitudeWidget';
+import { CompassWidget } from '../widgets/CompassWidget';
 import { VehicleProfile } from '../../core/profile/vehicleProfile';
 import { TelemetrySnapshot } from '../../core/telemetry/timeEngine';
 import { TelemetryPoint } from '../../core/model/telemetry';
@@ -284,6 +288,18 @@ export class OverlayRenderer {
         break;
       case 'tachometer_bar':
         widget = new TachometerBarWidget({ ...config.bounds });
+        break;
+      case 'session_timer':
+        widget = new SessionTimerWidget({ ...config.bounds });
+        break;
+      case 'g_force_bars':
+        widget = new GForceBarsWidget({ ...config.bounds });
+        break;
+      case 'altitude':
+        widget = new AltitudeWidget({ ...config.bounds });
+        break;
+      case 'compass':
+        widget = new CompassWidget({ ...config.bounds });
         break;
       default:
         widget = new TachometerCircularWidget({ ...config.bounds });

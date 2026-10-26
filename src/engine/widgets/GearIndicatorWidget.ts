@@ -18,9 +18,10 @@ export class GearIndicatorWidget implements BaseWidget {
     const { x, y, width, height } = this.bounds;
 
     const scale = Math.min(width / 80, height / 100);
-    const cornerRadius = Math.max(3, Math.round(8 * scale));
-    const titleFontSize = Math.max(8, Math.round(11 * scale));
-    const gearFontSize = Math.max(22, Math.round(52 * scale));
+    const cornerRadius = Math.max(4, Math.round(8 * scale));
+    const titleFontSize = Math.max(9, Math.round(Math.min(width * 0.18, height * 0.13)));
+    // La marcha debe ser enorme y ocupar la mayor parte del widget (estilo pantalla GT3 / competición)
+    const gearFontSize = Math.max(32, Math.round(Math.min(width * 0.75, height * 0.64)));
 
     const rpm = snapshot.rpm;
     const speed = snapshot.speedKmh;
@@ -65,10 +66,10 @@ export class GearIndicatorWidget implements BaseWidget {
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('GEAR', x + width / 2, y + Math.round(8 * scale));
+    ctx.fillText('GEAR', x + width / 2, y + Math.max(5, Math.round(6 * scale)));
 
-    // Marcha principal
-    ctx.font = `black ${gearFontSize}px ui-monospace, SFMono-Regular, monospace`;
+    // Marcha principal (grande y clara)
+    ctx.font = `900 ${gearFontSize}px ui-monospace, SFMono-Regular, monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -76,13 +77,17 @@ export class GearIndicatorWidget implements BaseWidget {
       ctx.fillStyle = CockpitColors.textMuted;
     } else if (isRedline) {
       ctx.fillStyle = CockpitColors.neonRed;
+      ctx.shadowColor = CockpitColors.neonRed;
+      ctx.shadowBlur = 12 * scale;
     } else if (gearStr === 'N') {
       ctx.fillStyle = CockpitColors.neonAmber;
     } else {
       ctx.fillStyle = CockpitColors.neonCyan;
+      ctx.shadowColor = 'rgba(0, 229, 255, 0.4)';
+      ctx.shadowBlur = 8 * scale;
     }
 
-    const gearCenterY = y + height / 2 + Math.round(6 * scale);
+    const gearCenterY = y + height * 0.58;
     ctx.fillText(gearStr, x + width / 2, gearCenterY);
 
     ctx.restore();

@@ -391,9 +391,9 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
   };
 
   return (
-    <div className="px-6 py-4 w-full space-y-4 animate-fadeIn">
+    <div className="px-6 py-2.5 w-full h-full flex flex-col justify-between gap-2.5 animate-fadeIn overflow-hidden">
       {/* 1. Barra superior de estado */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#13181E] border border-[#2C3947] rounded-xl px-4 py-2.5 shadow-md">
+      <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 bg-[#13181E] border border-[#2C3947] rounded-xl px-4 py-2 shadow-md">
         <div className="flex items-center gap-3">
           <Film className="w-5 h-5 text-[#00E5FF]" />
           <div>
@@ -464,10 +464,11 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
       </div>
 
       {/* 2. Contenedor de Vídeo + Canvas Superpuesto */}
-      <div
-        ref={containerRef}
-        className="relative bg-black rounded-2xl overflow-hidden border border-[#2C3947] shadow-2xl aspect-video flex items-center justify-center select-none group"
-      >
+      <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden">
+        <div
+          ref={containerRef}
+          className="relative bg-black rounded-xl overflow-hidden border border-[#2C3947] shadow-2xl aspect-video h-full max-h-full max-w-full flex items-center justify-center select-none group"
+        >
         {session.hasVideo && videoUrl ? (
           <video
             ref={videoRef}
@@ -563,10 +564,11 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
             <Play className="w-8 h-8 fill-current ml-1" />
           </button>
         )}
+        </div>
       </div>
 
       {/* 3. Barra de Control de Transporte y Scrubber */}
-      <div className="bg-[#13181E] border border-[#2C3947] rounded-xl p-4 shadow-lg space-y-3">
+      <div className="flex-shrink-0 bg-[#13181E] border border-[#2C3947] rounded-xl px-4 py-2.5 shadow-lg space-y-2">
         {/* Barra de progreso de tiempo con cortes de sensor visualizados */}
         <div className="space-y-1">
           <div className="relative pt-1">

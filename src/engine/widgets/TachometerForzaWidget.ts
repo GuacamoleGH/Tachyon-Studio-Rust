@@ -191,31 +191,38 @@ export class TachometerForzaWidget implements BaseWidget {
     ctx.fillText(gearStr, cx, cy);
 
     // 7. Velocímetro integrado en la esquina inferior derecha (estilo Forza italic)
-    const speedX = x + width - Math.round(14 * scale);
-    const speedY = y + height - Math.round(12 * scale);
+    // El número y la unidad (KM/H) alineados horizontalmente a la misma altura
+    const targetY = y + height - Math.round(14 * scale);
+    const rightX = x + width - Math.round(14 * scale);
 
-    // Unidad en cursiva (KM/H o MPH)
-    const unitFontSize = Math.max(9, Math.round(14 * scale));
-    ctx.font = `italic bold ${unitFontSize}px system-ui, sans-serif`;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    // Unidad en cursiva (KM/H o MPH) a la derecha
+    const unitFontSize = Math.max(10, Math.round(15 * scale));
+    ctx.font = `italic bold ${unitFontSize}px system-ui, -apple-system, sans-serif`;
+    const unitMetrics = ctx.measureText(unitLabel);
+    const unitWidth = unitMetrics.width;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(unitLabel, speedX, speedY - Math.round(44 * scale));
+    ctx.fillText(unitLabel, rightX, targetY);
 
-    // Número grande de velocidad en cursiva brillante
-    const speedFontSize = Math.max(28, Math.round(54 * scale));
+    // Número grande de velocidad en cursiva brillante, inmediatamente a la izquierda de la unidad
+    const speedFontSize = Math.max(26, Math.round(48 * scale));
     ctx.font = `italic 900 ${speedFontSize}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'alphabetic';
+
+    const numX = rightX - unitWidth - Math.round(6 * scale);
+    const speedStr = displaySpeed !== null ? Math.round(displaySpeed).toString() : '0';
 
     if (displaySpeed !== null) {
       ctx.fillStyle = '#FFFFFF';
       ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
       ctx.shadowBlur = 8 * scale;
-      ctx.fillText(Math.round(displaySpeed).toString(), speedX, speedY);
+      ctx.fillText(speedStr, numX, targetY);
     } else {
       ctx.fillStyle = CockpitColors.textMuted;
-      ctx.fillText('0', speedX, speedY);
+      ctx.fillText(speedStr, numX, targetY);
     }
 
     ctx.restore();

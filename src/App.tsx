@@ -143,7 +143,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090C0E] text-[#F0F4F8] flex flex-col font-sans selection:bg-[#00E676] selection:text-[#090C0E]">
+    <div className={`min-h-screen ${activeTab === 'player' ? 'h-screen overflow-hidden' : ''} bg-[#090C0E] text-[#F0F4F8] flex flex-col font-sans selection:bg-[#00E676] selection:text-[#090C0E]`}>
       <input
         ref={fileInputRef}
         type="file"
@@ -166,7 +166,7 @@ export const App: React.FC = () => {
         hasSession={session !== null}
       />
 
-      <main className="flex-1 pb-16">
+      <main className={activeTab === 'player' ? 'flex-1 h-[calc(100vh-65px)] overflow-hidden flex flex-col' : 'flex-1 pb-16'}>
         {activeTab === 'profile' ? (
           <VehicleProfileScreen
             session={session}

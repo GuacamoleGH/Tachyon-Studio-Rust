@@ -307,7 +307,7 @@ export const TEMPLATE_WRC_RALLY: OverlayTemplate = {
       name: 'Minimapa Trazada GPS',
       bounds: { x: 1040, y: 20, width: 210, height: 160 },
       visible: true,
-      properties: { mode: 'chase_north', zoomMeters: 80 },
+      properties: { mode: 'chase_north', zoomMeters: 80, mapBackground: 'osm' },
     },
     {
       id: 'tachometer_forza',

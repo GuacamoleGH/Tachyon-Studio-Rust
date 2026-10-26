@@ -43,6 +43,7 @@ function createMockCtx(): any {
     closePath: () => {},
     setLineDash: () => {},
     createLinearGradient: () => ({ addColorStop: () => {} }),
+    drawImage: () => {},
     set fillStyle(_: any) {},
     set strokeStyle(_: any) {},
     set lineWidth(_: any) {},
@@ -369,5 +370,15 @@ describe('Base Widgets Render Tests', () => {
     // Coordenadas GPS
     const gpsCoords = new GpsCoordsWidget({ x: 40, y: 450, width: 190, height: 80 });
     expect(() => gpsCoords.render(context)).not.toThrow();
+
+    // MapWidget con fondo OpenStreetMap y CartoDB
+    const mapOsm = new MapWidget({ x: 500, y: 100, width: 220, height: 160 });
+    mapOsm.mapBackground = 'osm';
+    mapOsm.mode = 'chase_north';
+    expect(() => mapOsm.render({ ...context, allPoints: [{ latitude: 40.41, longitude: -3.70 }] as any })).not.toThrow();
+
+    mapOsm.mapBackground = 'carto_dark';
+    mapOsm.mode = 'full_circuit';
+    expect(() => mapOsm.render({ ...context, allPoints: [{ latitude: 40.41, longitude: -3.70 }, { latitude: 40.42, longitude: -3.71 }] as any })).not.toThrow();
   });
 });

@@ -214,6 +214,7 @@ export class OverlayRenderer {
       } else if (w instanceof MapWidget) {
         props.mode = w.mode;
         props.zoomMeters = w.zoomMeters;
+        props.mapBackground = w.mapBackground;
       }
 
       return {
@@ -279,6 +280,9 @@ export class OverlayRenderer {
         }
         if (config.properties?.zoomMeters) {
           (widget as MapWidget).zoomMeters = config.properties.zoomMeters;
+        }
+        if (config.properties?.mapBackground) {
+          (widget as MapWidget).mapBackground = config.properties.mapBackground;
         }
         break;
       case 'speed_graph':

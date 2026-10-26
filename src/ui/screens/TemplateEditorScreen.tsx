@@ -28,6 +28,7 @@ import { SessionBundle } from '../../core/model/session';
 import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR, loadProfileFromStorage } from '../../core/profile/vehicleProfile';
 import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { CockpitColors } from '../../core/theme/colors';
+import { MapTileManager } from '../../engine/maps/MapTileManager';
 
 interface TemplateEditorScreenProps {
   session?: SessionBundle | null;
@@ -321,6 +322,13 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
 
   useEffect(() => {
     renderEditorCanvas();
+  }, [renderEditorCanvas]);
+
+  // Redibujar el lienzo en cuanto se descargue cualquier tesela de mapa de OpenStreetMap
+  useEffect(() => {
+    return MapTileManager.subscribe(() => {
+      renderEditorCanvas();
+    });
   }, [renderEditorCanvas]);
 
   // Conversión de coordenadas de ratón del viewport al espacio de resolución del Canvas
@@ -1019,6 +1027,30 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
                       <option value={350}>350 metros (Circuito Rápido)</option>
                       <option value={600}>600 metros (Panorámico)</option>
                       <option value={1200}>1200 metros (Tramo Largo)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#8B9CB0] mb-1">Fondo de Mapa Callejero (Tiles):</label>
+                    <select
+                      value={selectedWidget.properties?.mapBackground || 'none'}
+                      onChange={(e) => {
+                        const bg = e.target.value;
+                        setTemplate((prev) => ({
+                          ...prev,
+                          widgets: prev.widgets.map((w) =>
+                            w.id === selectedWidget.id
+                              ? { ...w, properties: { ...w.properties, mapBackground: bg } }
+                              : w
+                          ),
+                        }));
+                      }}
+                      className="w-full bg-[#090C0E] border border-[#2C3947] rounded px-2 py-1 text-[#F0F4F8]"
+                    >
+                      <option value="none">Oscuro Vectorial (Predeterminado)</option>
+                      <option value="osm">OpenStreetMap Estándar (App Móvil Tachyon)</option>
+                      <option value="carto_dark">CartoDB Dark Matter (Oscuro con Calles)</option>
+                      <option value="carto_light">CartoDB Positron (Calles Claras)</option>
                     </select>
                   </div>
                 </div>

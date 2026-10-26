@@ -21,6 +21,7 @@ import { TimeEngine } from '../../core/telemetry/timeEngine';
 import { OverlayRenderer } from '../../engine/canvas/overlayRenderer';
 import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR, loadProfileFromStorage } from '../../core/profile/vehicleProfile';
 import { OverlayTemplate, loadTemplateFromStorage as loadStoredTemplate, TEMPLATE_MYCHRON_5 } from '../../core/templates/templateModel';
+import { MapTileManager } from '../../engine/maps/MapTileManager';
 import { RenderModal } from './RenderModal';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import {
@@ -212,6 +213,15 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
       drawOverlayFrame(currentTime);
     }
   }, [currentTime, isPlaying, drawOverlayFrame]);
+
+  // Redibujar inmediatamente cuando se descargue cualquier tesela de mapa (OSM / CartoDB)
+  useEffect(() => {
+    return MapTileManager.subscribe(() => {
+      if (!isPlaying) {
+        drawOverlayFrame(currentTime);
+      }
+    });
+  }, [isPlaying, currentTime, drawOverlayFrame]);
 
   // Bucle de sincronización de vídeo con requestVideoFrameCallback o requestAnimationFrame
   useEffect(() => {

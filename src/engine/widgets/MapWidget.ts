@@ -1,5 +1,6 @@
 import { BaseWidget, WidgetBounds, WidgetRenderContext } from './types';
 import { CockpitColors } from '../../core/theme/colors';
+import { MapBackgroundProvider, MapTileManager } from '../maps/MapTileManager';
 
 export type MapDisplayMode = 'chase_heading' | 'chase_north' | 'full_circuit';
 
@@ -18,6 +19,9 @@ export class MapWidget implements BaseWidget {
 
   // Radio en metros visible para el zoom del minimapa dinámico (por defecto 120m para visión cercana y detallada de curvas)
   public zoomMeters: number = 120;
+
+  // Fondo cartográfico callejero descargado por teselas (OpenStreetMap, CartoDB o vectorial oscuro)
+  public mapBackground: MapBackgroundProvider = 'none';
 
   // Caché de la caja delimitadora global de coordenadas de la sesión
   private boundsCache: { minLat: number; maxLat: number; minLon: number; maxLon: number } | null = null;
@@ -44,35 +48,30 @@ export class MapWidget implements BaseWidget {
     ctx.roundRect(x, y, width, height, cornerRadius);
     ctx.fillStyle = 'rgba(19, 24, 30, 0.88)';
     ctx.fill();
-    ctx.strokeStyle = CockpitColors.border;
-    ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
-    ctx.stroke();
 
     const isChaseMode = this.mode === 'chase_heading' || this.mode === 'chase_north';
     const hasCarPos = snapshot.gpsAvailable && snapshot.latitude != null && snapshot.longitude != null;
 
-    // Etiqueta del widget
-    ctx.font = `bold ${titleFontSize}px ui-monospace, SFMono-Regular, monospace`;
-    ctx.fillStyle = CockpitColors.textSecondary;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(isChaseMode ? 'MINIMAPA GPS' : 'TRAZADA GPS', x + Math.round(10 * scale), y + Math.round(10 * scale));
-
-    // Indicador de modo / zoom en la esquina superior derecha
-    if (isChaseMode) {
-      ctx.font = `bold ${Math.max(7, Math.round(9 * scale))}px ui-monospace, SFMono-Regular, monospace`;
-      ctx.fillStyle = CockpitColors.neonCyan;
-      ctx.textAlign = 'right';
-      ctx.fillText(`${this.zoomMeters}m`, x + width - Math.round(10 * scale), y + Math.round(10 * scale));
-    }
-
     if (!allPoints || allPoints.length === 0) {
+      ctx.font = `bold ${titleFontSize}px ui-monospace, SFMono-Regular, monospace`;
+      ctx.fillStyle = CockpitColors.textSecondary;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(isChaseMode ? 'MINIMAPA GPS' : 'TRAZADA GPS', x + Math.round(10 * scale), y + Math.round(10 * scale));
+
       const emptyFontSize = Math.max(9, Math.round(11 * scale));
       ctx.font = `bold ${emptyFontSize}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = CockpitColors.textMuted;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('Sin datos GPS', x + width / 2, y + height / 2);
+
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, cornerRadius);
+      ctx.strokeStyle = CockpitColors.border;
+      ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
+      ctx.stroke();
+
       ctx.restore();
       return;
     }
@@ -130,24 +129,62 @@ export class MapWidget implements BaseWidget {
       ctx.roundRect(x, y, width, height, cornerRadius);
       ctx.clip();
 
-      // Círculos de radar concéntricos
-      ctx.beginPath();
-      ctx.arc(cx, cy, radarRadius * 0.5, 0, Math.PI * 2);
-      ctx.arc(cx, cy, radarRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(44, 57, 71, 0.45)';
-      ctx.lineWidth = Math.max(1, Math.round(1 * scale));
-      ctx.setLineDash([3 * scale, 3 * scale]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      // Renderizado de teselas de mapa (OpenStreetMap o CartoDB) si está activado
+      if (this.mapBackground !== 'none') {
+        const metersPerPx = Math.max(50, this.zoomMeters) / radarRadius;
+        const z = MapTileManager.calculateOptimalZoom(metersPerPx, carLat);
+        const metersPerTilePx = MapTileManager.getMetersPerTilePixel(z, carLat);
+        const tileScale = metersPerTilePx * scaleM;
+        const carWorld = MapTileManager.lonLatToWorldPixels(carLat, carLon, z);
 
-      // Ejes tenues
-      ctx.beginPath();
-      ctx.moveTo(cx - radarRadius, cy);
-      ctx.lineTo(cx + radarRadius, cy);
-      ctx.moveTo(cx, cy - radarRadius);
-      ctx.lineTo(cx, cy + radarRadius);
-      ctx.strokeStyle = 'rgba(44, 57, 71, 0.3)';
-      ctx.stroke();
+        const maxScreenDist = Math.hypot(width, height) / 2 + 40;
+        const maxTileDist = maxScreenDist / tileScale;
+        const minTx = Math.floor((carWorld.x - maxTileDist) / 256);
+        const maxTx = Math.floor((carWorld.x + maxTileDist) / 256);
+        const minTy = Math.floor((carWorld.y - maxTileDist) / 256);
+        const maxTy = Math.floor((carWorld.y + maxTileDist) / 256);
+
+        ctx.save();
+        if (rotateWithHeading) {
+          ctx.translate(cx, cy);
+          ctx.rotate(rotRad);
+          ctx.translate(-cx, -cy);
+        }
+
+        for (let tx = minTx; tx <= maxTx; tx++) {
+          for (let ty = minTy; ty <= maxTy; ty++) {
+            const tileImg = MapTileManager.getTile(this.mapBackground, z, tx, ty);
+            if (tileImg) {
+              const screenTileX = cx + (tx * 256 - carWorld.x) * tileScale;
+              const screenTileY = cy + (ty * 256 - carWorld.y) * tileScale;
+              const screenTileSize = 256 * tileScale;
+              ctx.drawImage(tileImg, screenTileX, screenTileY, screenTileSize, screenTileSize);
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      if (this.mapBackground === 'none') {
+        // Círculos de radar concéntricos
+        ctx.beginPath();
+        ctx.arc(cx, cy, radarRadius * 0.5, 0, Math.PI * 2);
+        ctx.arc(cx, cy, radarRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(44, 57, 71, 0.45)';
+        ctx.lineWidth = Math.max(1, Math.round(1 * scale));
+        ctx.setLineDash([3 * scale, 3 * scale]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Ejes tenues
+        ctx.beginPath();
+        ctx.moveTo(cx - radarRadius, cy);
+        ctx.lineTo(cx + radarRadius, cy);
+        ctx.moveTo(cx, cy - radarRadius);
+        ctx.lineTo(cx, cy + radarRadius);
+        ctx.strokeStyle = 'rgba(44, 57, 71, 0.3)';
+        ctx.stroke();
+      }
 
       // Límite de distancia en metros para descartar puntos lejanos fuera de pantalla
       const maxDistM = this.zoomMeters * 2.2;
@@ -186,16 +223,30 @@ export class MapWidget implements BaseWidget {
           ctx.lineTo(projected[i].px, projected[i].py);
         }
 
-        // Dibujar trazado: 1º halo exterior brillante, 2º línea central
-        ctx.strokeStyle = 'rgba(0, 229, 255, 0.28)';
-        ctx.lineWidth = Math.max(3.5, Math.round(5.5 * scale));
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.stroke();
+        if (this.mapBackground !== 'none') {
+          // Borde oscuro grueso para alto contraste sobre calles o fondo claro (estilo app móvil Tachyon)
+          ctx.strokeStyle = 'rgba(10, 15, 20, 0.9)';
+          ctx.lineWidth = Math.max(4.5, Math.round(6.5 * scale));
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.stroke();
 
-        ctx.strokeStyle = CockpitColors.neonCyan;
-        ctx.lineWidth = Math.max(1.5, Math.round(2.5 * scale));
-        ctx.stroke();
+          // Línea interior cian fluorescente brillante
+          ctx.strokeStyle = CockpitColors.neonCyan;
+          ctx.lineWidth = Math.max(2.0, Math.round(3.0 * scale));
+          ctx.stroke();
+        } else {
+          // Modo vectorial oscuro original
+          ctx.strokeStyle = 'rgba(0, 229, 255, 0.28)';
+          ctx.lineWidth = Math.max(3.5, Math.round(5.5 * scale));
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+
+          ctx.strokeStyle = CockpitColors.neonCyan;
+          ctx.lineWidth = Math.max(1.5, Math.round(2.5 * scale));
+          ctx.stroke();
+        }
       }
 
       // Vehículo centrado en (cx, cy)
@@ -218,6 +269,17 @@ export class MapWidget implements BaseWidget {
       ctx.fill();
 
       ctx.restore(); // Termina clip
+
+      // Etiquetas de cabecera (con píldora semitransparente si hay mapa)
+      this.renderHeaderLabels(ctx, x, y, width, scale, isChaseMode, titleFontSize);
+
+      // Borde del panel
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, cornerRadius);
+      ctx.strokeStyle = CockpitColors.border;
+      ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
+      ctx.stroke();
+
       ctx.restore(); // Termina estado principal
       return;
     }
@@ -265,6 +327,49 @@ export class MapWidget implements BaseWidget {
       return { px, py };
     };
 
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, cornerRadius);
+    ctx.clip();
+
+    // Teselas en modo circuito completo
+    if (this.mapBackground !== 'none') {
+      const centerLat = (minLat + maxLat) / 2;
+      const centerLon = (minLon + maxLon) / 2;
+      const latRad = (centerLat * Math.PI) / 180;
+      const mPerLat = 111139;
+      const mPerLon = 111139 * Math.cos(latRad);
+      const spanMeters = Math.max(latSpan * mPerLat, lonSpan * mPerLon);
+      const minDimPx = Math.min(mapW, mapH);
+      const metersPerPx = spanMeters / Math.max(30, minDimPx);
+      const z = MapTileManager.calculateOptimalZoom(metersPerPx, centerLat);
+      const metersPerTilePx = MapTileManager.getMetersPerTilePixel(z, centerLat);
+
+      const centerScreenX = mapX + mapW / 2;
+      const centerScreenY = mapY + mapH / 2;
+      const centerWorld = MapTileManager.lonLatToWorldPixels(centerLat, centerLon, z);
+      const tileScale = (1 / metersPerPx) * metersPerTilePx;
+
+      const maxScreenDist = Math.hypot(width, height) / 2 + 40;
+      const maxTileDist = maxScreenDist / Math.max(0.01, tileScale);
+      const minTx = Math.floor((centerWorld.x - maxTileDist) / 256);
+      const maxTx = Math.floor((centerWorld.x + maxTileDist) / 256);
+      const minTy = Math.floor((centerWorld.y - maxTileDist) / 256);
+      const maxTy = Math.floor((centerWorld.y + maxTileDist) / 256);
+
+      for (let tx = minTx; tx <= maxTx; tx++) {
+        for (let ty = minTy; ty <= maxTy; ty++) {
+          const tileImg = MapTileManager.getTile(this.mapBackground, z, tx, ty);
+          if (tileImg) {
+            const screenTileX = centerScreenX + (tx * 256 - centerWorld.x) * tileScale;
+            const screenTileY = centerScreenY + (ty * 256 - centerWorld.y) * tileScale;
+            const screenTileSize = 256 * tileScale;
+            ctx.drawImage(tileImg, screenTileX, screenTileY, screenTileSize, screenTileSize);
+          }
+        }
+      }
+    }
+
     // Polilínea de la trazada completa
     ctx.beginPath();
     let started = false;
@@ -280,11 +385,23 @@ export class MapWidget implements BaseWidget {
       }
     }
 
-    ctx.strokeStyle = 'rgba(0, 229, 255, 0.45)';
-    ctx.lineWidth = Math.max(1.5, Math.round(2.5 * scale));
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
+    if (this.mapBackground !== 'none') {
+      ctx.strokeStyle = 'rgba(10, 15, 20, 0.9)';
+      ctx.lineWidth = Math.max(4, Math.round(5.5 * scale));
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      ctx.strokeStyle = CockpitColors.neonCyan;
+      ctx.lineWidth = Math.max(1.8, Math.round(2.6 * scale));
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'rgba(0, 229, 255, 0.45)';
+      ctx.lineWidth = Math.max(1.5, Math.round(2.5 * scale));
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
 
     // Posición del coche - Puntito limpio
     if (snapshot.gpsAvailable && snapshot.latitude != null && snapshot.longitude != null) {
@@ -317,6 +434,62 @@ export class MapWidget implements BaseWidget {
       ctx.fillText('SIN GPS', x + width - Math.round(10 * scale), y + Math.round(15 * scale));
     }
 
+    ctx.restore(); // Termina clip
+
+    // Etiquetas de cabecera
+    this.renderHeaderLabels(ctx, x, y, width, scale, isChaseMode, titleFontSize);
+
+    // Borde exterior
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, cornerRadius);
+    ctx.strokeStyle = CockpitColors.border;
+    ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
+    ctx.stroke();
+
     ctx.restore();
+  }
+
+  private renderHeaderLabels(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    scale: number,
+    isChaseMode: boolean,
+    titleFontSize: number
+  ): void {
+    const titleText = isChaseMode ? 'MINIMAPA GPS' : 'TRAZADA GPS';
+    ctx.font = `bold ${titleFontSize}px ui-monospace, SFMono-Regular, monospace`;
+    const titleWidth = ctx.measureText(titleText).width;
+
+    if (this.mapBackground !== 'none') {
+      ctx.fillStyle = 'rgba(12, 16, 22, 0.82)';
+      ctx.beginPath();
+      ctx.roundRect(x + 7 * scale, y + 6 * scale, titleWidth + 10 * scale, titleFontSize + 6 * scale, 4 * scale);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = CockpitColors.textSecondary;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(titleText, x + Math.round(12 * scale), y + Math.round(9 * scale));
+
+    if (isChaseMode) {
+      const zoomText = `${this.zoomMeters}m`;
+      const zoomFontSize = Math.max(7, Math.round(9 * scale));
+      ctx.font = `bold ${zoomFontSize}px ui-monospace, SFMono-Regular, monospace`;
+      const zoomWidth = ctx.measureText(zoomText).width;
+
+      if (this.mapBackground !== 'none') {
+        ctx.fillStyle = 'rgba(12, 16, 22, 0.82)';
+        ctx.beginPath();
+        ctx.roundRect(x + width - zoomWidth - 17 * scale, y + 6 * scale, zoomWidth + 10 * scale, zoomFontSize + 6 * scale, 4 * scale);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = CockpitColors.neonCyan;
+      ctx.textAlign = 'right';
+      ctx.fillText(zoomText, x + width - Math.round(12 * scale), y + Math.round(9 * scale));
+    }
   }
 }

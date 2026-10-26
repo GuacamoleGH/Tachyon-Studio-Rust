@@ -291,14 +291,14 @@ export const TEMPLATE_WRC_RALLY: OverlayTemplate = {
       id: 'altitude',
       type: 'altitude',
       name: 'Altitud GPS',
-      bounds: { x: 195, y: 25, width: 130, height: 44 },
+      bounds: { x: 195, y: 20, width: 85, height: 65 },
       visible: true,
     },
     {
       id: 'compass',
       type: 'compass',
       name: 'Rumbo GPS',
-      bounds: { x: 340, y: 20, width: 65, height: 65 },
+      bounds: { x: 290, y: 20, width: 65, height: 65 },
       visible: true,
     },
     {

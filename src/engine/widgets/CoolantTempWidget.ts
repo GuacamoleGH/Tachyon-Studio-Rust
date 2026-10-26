@@ -19,9 +19,9 @@ export class CoolantTempWidget implements BaseWidget {
 
     const scale = Math.min(width / 140, height / 75);
     const cornerRadius = Math.max(3, Math.round(8 * scale));
-    const titleFontSize = Math.max(10, Math.round(Math.min(width * 0.08, height * 0.16)));
-    const valFontSize = Math.max(26, Math.round(Math.min(width * 0.28, height * 0.52)));
-    const unitFontSize = Math.max(12, Math.round(Math.min(width * 0.11, height * 0.22)));
+    const titleFontSize = Math.max(7, Math.round(Math.min(width * 0.07, height * 0.18)));
+    const valFontSize = Math.max(14, Math.round(Math.min(width * 0.20, height * 0.38)));
+    const unitFontSize = Math.max(7, Math.round(Math.min(width * 0.09, height * 0.18)));
 
     const coolantSignal = snapshot.signals.coolant_temp_c;
     const isAvailable = coolantSignal?.isAvailable && coolantSignal.value !== null;
@@ -56,38 +56,40 @@ export class CoolantTempWidget implements BaseWidget {
     ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
     ctx.stroke();
 
+    const padX = Math.max(8, Math.round(10 * scale));
+
     // Título
     ctx.font = `bold ${titleFontSize}px ui-monospace, SFMono-Regular, monospace`;
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('TEMP REFRIGERANTE', x + Math.round(10 * scale), y + Math.round(8 * scale));
+    ctx.fillText('TEMP REFRIGERANTE', x + padX, y + Math.max(4, Math.round(6 * scale)));
 
-    // Valor numérico
+    // Valor numérico posicionado con espacio vertical limpio
     ctx.font = `900 ${valFontSize}px ui-monospace, SFMono-Regular, monospace`;
-    ctx.textBaseline = 'middle';
-    const valY = y + height / 2 + Math.round(2 * scale);
+    ctx.textBaseline = 'alphabetic';
+    const valBaseY = y + height - Math.max(9, Math.round(13 * scale));
 
     if (displayVal !== null) {
       ctx.fillStyle = statusColor;
       const valStr = `${Math.round(displayVal)}`;
-      ctx.fillText(valStr, x + Math.round(10 * scale), valY);
+      ctx.fillText(valStr, x + padX, valBaseY);
 
-      // Unidad (anclada dinámicamente tras el número)
+      // Unidad (anclada tras el número con separación proporcionada)
       const valW = ctx.measureText(valStr).width;
       ctx.font = `bold ${unitFontSize}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = CockpitColors.textSecondary;
-      ctx.fillText(unitLabel, x + Math.round(10 * scale) + valW + Math.round(6 * scale), valY + Math.round(2 * scale));
+      ctx.fillText(unitLabel, x + padX + valW + Math.round(4 * scale), valBaseY);
     } else {
       ctx.fillStyle = CockpitColors.textMuted;
-      ctx.fillText('N/D', x + Math.round(10 * scale), valY);
+      ctx.fillText('N/D', x + padX, valBaseY);
     }
 
     // Mini barra horizontal de nivel en la parte inferior
-    const barPadX = Math.round(10 * scale);
+    const barPadX = padX;
     const barW = width - barPadX * 2;
-    const barH = Math.max(3, Math.round(5 * scale));
-    const barY = y + height - Math.round(10 * scale);
+    const barH = Math.max(2, Math.round(4 * scale));
+    const barY = y + height - Math.max(5, Math.round(6 * scale));
 
     ctx.beginPath();
     ctx.roundRect(x + barPadX, barY, barW, barH, 2);

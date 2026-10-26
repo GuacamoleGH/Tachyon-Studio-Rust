@@ -25,10 +25,12 @@ export class MaxStatsWidget implements BaseWidget {
 
     const scale = Math.min(width / 230, height / 80);
     const cornerRadius = Math.max(3, Math.round(8 * scale));
-    const titleFontSize = Math.max(11, Math.round(Math.min(width * 0.055, height * 0.16)));
-    const labelFontSize = Math.max(10, Math.round(Math.min(width * 0.05, height * 0.14)));
-    const numFontSize = Math.max(22, Math.round(Math.min(width * 0.14, height * 0.38)));
-    const unitFontSize = Math.max(9, Math.round(Math.min(width * 0.045, height * 0.13)));
+    const titleFontSize = Math.max(9, Math.round(Math.min(width * 0.05, height * 0.15)));
+    const labelFontSize = Math.max(8, Math.round(Math.min(width * 0.045, height * 0.13)));
+    const padX = Math.max(8, Math.round(10 * scale));
+    const colWidth = (width - padX * 2) / 3;
+    const maxAllowedNumFont = Math.max(14, Math.round(Math.min(colWidth * 0.25, height * 0.28)));
+    const unitFontSize = Math.max(7, Math.round(Math.min(colWidth * 0.12, height * 0.12)));
 
     const isImperial = unitSystem === 'imperial';
     const speedUnit = isImperial ? 'MPH' : 'KM/H';
@@ -87,11 +89,9 @@ export class MaxStatsWidget implements BaseWidget {
     ctx.fillStyle = CockpitColors.textSecondary;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    const padX = Math.round(12 * scale);
     ctx.fillText('RÉCORDS DE SESIÓN', x + padX, y + Math.round(height * 0.1));
 
     // 3 Columnas: V-MAX, LAT G MAX, RPM MAX
-    const colWidth = (width - padX * 2) / 3;
     const colY = y + Math.round(height * 0.32);
 
     const cols = [
@@ -125,18 +125,30 @@ export class MaxStatsWidget implements BaseWidget {
       ctx.textBaseline = 'top';
       ctx.fillText(col.label, colX, colY);
 
-      // Valor en negrita 900
-      ctx.font = `900 ${numFontSize}px ui-monospace, SFMono-Regular, monospace`;
+      // Calcular tamaño de fuente que garantice que número + unidad quepan dentro de la columna
+      let curNumFont = maxAllowedNumFont;
+      ctx.font = `900 ${curNumFont}px ui-monospace, SFMono-Regular, monospace`;
+      let valW = ctx.measureText(col.val).width;
+      ctx.font = `bold ${unitFontSize}px ui-monospace, SFMono-Regular, monospace`;
+      let unitW = ctx.measureText(col.unit).width;
+
+      while (valW + unitW + Math.round(3 * scale) > colWidth - Math.round(4 * scale) && curNumFont > 10) {
+        curNumFont -= 1;
+        ctx.font = `900 ${curNumFont}px ui-monospace, SFMono-Regular, monospace`;
+        valW = ctx.measureText(col.val).width;
+      }
+
+      // Dibujar valor ajustado
+      ctx.font = `900 ${curNumFont}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = col.color;
       ctx.textBaseline = 'alphabetic';
-      const numBaseY = y + height - Math.round(height * 0.16);
+      const numBaseY = y + height - Math.max(8, Math.round(height * 0.18));
       ctx.fillText(col.val, colX, numBaseY);
 
-      // Unidad
-      const numWidth = ctx.measureText(col.val).width;
+      // Dibujar unidad
       ctx.font = `bold ${unitFontSize}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = CockpitColors.textMuted;
-      ctx.fillText(col.unit, colX + numWidth + Math.round(4 * scale), numBaseY);
+      ctx.fillText(col.unit, colX + valW + Math.round(3 * scale), numBaseY);
     });
 
     ctx.restore();

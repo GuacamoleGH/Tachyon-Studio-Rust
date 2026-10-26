@@ -466,7 +466,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
       bounds = { x: 300, y: 150, width: 180, height: 90 };
     } else if (type === 'altitude') {
       name = 'Altitud GPS';
-      bounds = { x: 100, y: 150, width: 140, height: 75 };
+      bounds = { x: 100, y: 150, width: 85, height: 68 };
     } else if (type === 'compass') {
       name = 'Brújula / Rumbo GPS';
       bounds = { x: 450, y: 150, width: 120, height: 120 };

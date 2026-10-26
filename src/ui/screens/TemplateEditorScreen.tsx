@@ -1049,6 +1049,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
                     >
                       <option value="none">Oscuro Vectorial (Predeterminado)</option>
                       <option value="osm">OpenStreetMap Estándar (App Móvil Tachyon)</option>
+                      <option value="carto_voyager">CartoDB Voyager (Calles Detalladas a Color)</option>
                       <option value="carto_dark">CartoDB Dark Matter (Oscuro con Calles)</option>
                       <option value="carto_light">CartoDB Positron (Calles Claras)</option>
                     </select>

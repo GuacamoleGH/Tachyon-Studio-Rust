@@ -1,10 +1,13 @@
-export type MapBackgroundProvider = 'none' | 'osm' | 'carto_dark' | 'carto_light';
+export type MapBackgroundProvider = 'none' | 'osm' | 'carto_voyager' | 'carto_dark' | 'carto_light';
 
 export class MapTileManager {
   private static cache: Map<string, HTMLImageElement> = new Map();
   private static listeners: Set<() => void> = new Set();
   private static failedUrls: Set<string> = new Set();
   private static maxCacheSize: number = 300;
+
+  // Clave API de CartoDB (5.000.000 peticiones/mes gratuitas)
+  public static cartoApiKey: string = 'cb1_4v3w_1_cc302707f12f6e47376ae5f1';
 
   /**
    * Suscribe un callback que se invocará cuando cualquier tesela termine de cargarse.
@@ -36,17 +39,17 @@ export class MapTileManager {
     const normX = ((x % n) + n) % n;
     if (y < 0 || y >= n) return null;
 
+    const keyParam = this.cartoApiKey ? `?key=${this.cartoApiKey}` : '';
+
     switch (provider) {
       case 'osm':
         return `https://tile.openstreetmap.org/${z}/${normX}/${y}.png`;
-      case 'carto_dark': {
-        const sub = ['a', 'b', 'c', 'd'][(normX + y) % 4];
-        return `https://${sub}.basemaps.cartocdn.com/dark_all/${z}/${normX}/${y}.png`;
-      }
-      case 'carto_light': {
-        const sub = ['a', 'b', 'c', 'd'][(normX + y) % 4];
-        return `https://${sub}.basemaps.cartocdn.com/light_all/${z}/${normX}/${y}.png`;
-      }
+      case 'carto_voyager':
+        return `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${normX}/${y}.png${keyParam}`;
+      case 'carto_dark':
+        return `https://basemaps.cartocdn.com/rastertiles/dark_all/${z}/${normX}/${y}.png${keyParam}`;
+      case 'carto_light':
+        return `https://basemaps.cartocdn.com/rastertiles/light_all/${z}/${normX}/${y}.png${keyParam}`;
       default:
         return null;
     }

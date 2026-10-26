@@ -380,5 +380,8 @@ describe('Base Widgets Render Tests', () => {
     mapOsm.mapBackground = 'carto_dark';
     mapOsm.mode = 'full_circuit';
     expect(() => mapOsm.render({ ...context, allPoints: [{ latitude: 40.41, longitude: -3.70 }, { latitude: 40.42, longitude: -3.71 }] as any })).not.toThrow();
+
+    mapOsm.mapBackground = 'carto_voyager';
+    expect(() => mapOsm.render({ ...context, allPoints: [{ latitude: 40.41, longitude: -3.70 }] as any })).not.toThrow();
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   TEMPLATE_MYCHRON_5,
   TEMPLATE_MINIMALISTA,
+  BUILTIN_TEMPLATES,
   scaleTemplate,
 } from '../src/core/templates/templateModel';
 import { OverlayRenderer } from '../src/engine/canvas/overlayRenderer';
@@ -61,5 +62,19 @@ describe('Overlay Template Model & Serialization', () => {
     expect(serialized.resolution.width).toBe(1920);
     expect(serialized.resolution.height).toBe(1080);
     expect(serialized.widgets.length).toBe(TEMPLATE_MINIMALISTA.widgets.length);
+  });
+
+  it('valida que todas las plantillas integradas se aplican sin errores y tienen widgets bien formados', () => {
+    const renderer = new OverlayRenderer(1280, 720);
+    expect(BUILTIN_TEMPLATES.length).toBe(8);
+
+    for (const t of BUILTIN_TEMPLATES) {
+      expect(() => renderer.applyTemplate(t)).not.toThrow();
+      expect(renderer.widgets.length).toBe(t.widgets.length);
+      for (const w of t.widgets) {
+        expect(w.bounds.width).toBeGreaterThan(0);
+        expect(w.bounds.height).toBeGreaterThan(0);
+      }
+    }
   });
 });

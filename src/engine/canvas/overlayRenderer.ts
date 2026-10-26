@@ -15,6 +15,9 @@ import { SessionTimerWidget } from '../widgets/SessionTimerWidget';
 import { GForceBarsWidget } from '../widgets/GForceBarsWidget';
 import { AltitudeWidget } from '../widgets/AltitudeWidget';
 import { CompassWidget } from '../widgets/CompassWidget';
+import { MaxStatsWidget } from '../widgets/MaxStatsWidget';
+import { TachometerHorizontalWidget } from '../widgets/TachometerHorizontalWidget';
+import { GpsCoordsWidget } from '../widgets/GpsCoordsWidget';
 import { VehicleProfile } from '../../core/profile/vehicleProfile';
 import { TelemetrySnapshot } from '../../core/telemetry/timeEngine';
 import { TelemetryPoint } from '../../core/model/telemetry';
@@ -304,6 +307,15 @@ export class OverlayRenderer {
         break;
       case 'compass':
         widget = new CompassWidget({ ...config.bounds });
+        break;
+      case 'tachometer_horizontal':
+        widget = new TachometerHorizontalWidget({ ...config.bounds });
+        break;
+      case 'max_stats':
+        widget = new MaxStatsWidget({ ...config.bounds });
+        break;
+      case 'gps_coords':
+        widget = new GpsCoordsWidget({ ...config.bounds });
         break;
       default:
         widget = new TachometerCircularWidget({ ...config.bounds });

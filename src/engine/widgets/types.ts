@@ -22,6 +22,7 @@ export type WidgetType =
   | 'tachometer_circular'
   | 'tachometer_forza'
   | 'tachometer_bar'
+  | 'tachometer_horizontal'
   | 'shift_lights'
   | 'speedometer'
   | 'throttle'
@@ -34,7 +35,9 @@ export type WidgetType =
   | 'session_timer'
   | 'g_force_bars'
   | 'altitude'
-  | 'compass';
+  | 'compass'
+  | 'max_stats'
+  | 'gps_coords';
 
 export interface BaseWidget {
   id: string;

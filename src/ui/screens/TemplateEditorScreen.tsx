@@ -470,6 +470,15 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     } else if (type === 'compass') {
       name = 'Brújula / Rumbo GPS';
       bounds = { x: 450, y: 150, width: 120, height: 120 };
+    } else if (type === 'tachometer_horizontal') {
+      name = 'Tacómetro Horizontal F1/GT3';
+      bounds = { x: 340, y: 25, width: 600, height: 68 };
+    } else if (type === 'max_stats') {
+      name = 'Récords de Sesión (Max Stats)';
+      bounds = { x: 80, y: 350, width: 230, height: 80 };
+    } else if (type === 'gps_coords') {
+      name = 'Coordenadas GPS (WGS84)';
+      bounds = { x: 100, y: 150, width: 190, height: 80 };
     }
 
     // Escalar bounds si la resolución actual no es 720p
@@ -621,6 +630,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
               <option value="tachometer_circular">Tacómetro Circular</option>
               <option value="tachometer_forza">Tacómetro Racing (Estilo Forza)</option>
               <option value="tachometer_bar">Tacómetro de Barra GT</option>
+              <option value="tachometer_horizontal">Tacómetro Horizontal F1/GT3</option>
               <option value="shift_lights">Shift Lights</option>
               <option value="gear_indicator">Indicador de Marcha (Gear)</option>
               <option value="speedometer">Velocímetro Digital</option>
@@ -628,12 +638,14 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
               <option value="brake_throttle">Pedales Duales (Freno / Gas)</option>
               <option value="coolant_temp">Temp. Refrigerante OBD</option>
               <option value="g_meter">G-Meter</option>
-              <option value="map">Trazada GPS</option>
+              <option value="map">Trazada GPS / Minimapa</option>
               <option value="speed_graph">Gráfica Velocidad</option>
               <option value="session_timer">Cronómetro de Tiempo</option>
               <option value="g_force_bars">Barras de Fuerzas G</option>
               <option value="altitude">Altitud GPS</option>
               <option value="compass">Brújula / Rumbo GPS</option>
+              <option value="max_stats">Récords de Sesión (Max Stats)</option>
+              <option value="gps_coords">Coordenadas GPS (WGS84)</option>
             </select>
           </div>
 
@@ -900,7 +912,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
                   <div>
                     <label className="block text-[#8B9CB0] mb-1">Zoom del Minimapa (Radio):</label>
                     <select
-                      value={selectedWidget.properties?.zoomMeters || 400}
+                      value={selectedWidget.properties?.zoomMeters || 120}
                       onChange={(e) => {
                         const z = parseInt(e.target.value);
                         setTemplate((prev) => ({
@@ -914,10 +926,13 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
                       }}
                       className="w-full bg-[#090C0E] border border-[#2C3947] rounded px-2 py-1 text-[#F0F4F8]"
                     >
-                      <option value={250}>250 metros (Cercano / Curvas)</option>
-                      <option value={400}>400 metros (Estándar Videojuego)</option>
-                      <option value={800}>800 metros (Circuito Rápido)</option>
-                      <option value={1500}>1500 metros (Tramo de Montaña)</option>
+                      <option value={40}>40 metros (Ultra Zoom / Chicane / Kart)</option>
+                      <option value={75}>75 metros (Super Zoom / Curvas Lentas)</option>
+                      <option value={120}>120 metros (Zoom Deportivo / Recomendado)</option>
+                      <option value={200}>200 metros (Zoom Medio)</option>
+                      <option value={350}>350 metros (Circuito Rápido)</option>
+                      <option value={600}>600 metros (Panorámico)</option>
+                      <option value={1200}>1200 metros (Tramo Largo)</option>
                     </select>
                   </div>
                 </div>

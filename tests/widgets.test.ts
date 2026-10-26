@@ -13,6 +13,9 @@ import { SessionTimerWidget } from '../src/engine/widgets/SessionTimerWidget';
 import { GForceBarsWidget } from '../src/engine/widgets/GForceBarsWidget';
 import { AltitudeWidget } from '../src/engine/widgets/AltitudeWidget';
 import { CompassWidget } from '../src/engine/widgets/CompassWidget';
+import { MaxStatsWidget } from '../src/engine/widgets/MaxStatsWidget';
+import { TachometerHorizontalWidget } from '../src/engine/widgets/TachometerHorizontalWidget';
+import { GpsCoordsWidget } from '../src/engine/widgets/GpsCoordsWidget';
 import { PRESET_GASOLINA_ESTANDAR } from '../src/core/profile/vehicleProfile';
 import { TelemetrySnapshot } from '../src/core/telemetry/timeEngine';
 import { STANDARD_SIGNALS, StandardSignalKey } from '../src/core/model/telemetry';
@@ -33,6 +36,7 @@ function createMockCtx(): any {
     strokeRect: () => {},
     clearRect: () => {},
     fillText: () => {},
+    measureText: (text: string) => ({ width: (text || '').length * 8 }),
     clip: () => {},
     translate: () => {},
     rotate: () => {},
@@ -353,5 +357,17 @@ describe('Base Widgets Render Tests', () => {
     // Tacómetro estilo Forza Motorsport
     const forza = new TachometerForzaWidget({ x: 30, y: 440, width: 280, height: 260 });
     expect(() => forza.render(context)).not.toThrow();
+
+    // Tacómetro horizontal F1/GT3
+    const f1Tach = new TachometerHorizontalWidget({ x: 300, y: 20, width: 600, height: 68 });
+    expect(() => f1Tach.render(context)).not.toThrow();
+
+    // Récords de sesión (Max Stats)
+    const maxStats = new MaxStatsWidget({ x: 40, y: 350, width: 220, height: 80 });
+    expect(() => maxStats.render(context)).not.toThrow();
+
+    // Coordenadas GPS
+    const gpsCoords = new GpsCoordsWidget({ x: 40, y: 450, width: 190, height: 80 });
+    expect(() => gpsCoords.render(context)).not.toThrow();
   });
 });

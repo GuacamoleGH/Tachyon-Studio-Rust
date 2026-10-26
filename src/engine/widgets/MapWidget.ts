@@ -16,8 +16,8 @@ export class MapWidget implements BaseWidget {
   // 'full_circuit': vista de todo el circuito completo estático
   public mode: MapDisplayMode = 'chase_north';
 
-  // Radio en metros visible para el zoom del minimapa dinámico
-  public zoomMeters: number = 400;
+  // Radio en metros visible para el zoom del minimapa dinámico (por defecto 120m para visión cercana y detallada de curvas)
+  public zoomMeters: number = 120;
 
   // Caché de la caja delimitadora global de coordenadas de la sesión
   private boundsCache: { minLat: number; maxLat: number; minLon: number; maxLon: number } | null = null;

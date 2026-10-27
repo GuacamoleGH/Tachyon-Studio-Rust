@@ -344,4 +344,200 @@ export async function runFfmpegCommand(args: string[]): Promise<string> {
   return await invoke<string>('run_ffmpeg_command', { args });
 }
 
+export interface VideoFileItem {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  chapterInfo?: {
+    isGoPro: boolean;
+    session: string;
+    chapter: number;
+    label: string;
+  };
+}
+
+/**
+ * Identifica la sesión y el número de capítulo de un archivo según la nomenclatura de GoPro:
+ * - HERO Session / HERO 5 Session / HERO 4 / HERO 5: GOPR0001.MP4, GP010001.MP4, GP020001.MP4
+ * - HERO 6 / 7 / 8 / 9 / 10 / 11 / 12 / 13: GH010001.MP4, GH020001.MP4, GX010001.MP4
+ */
+export function parseGoProOrder(filename: string): {
+  isGoPro: boolean;
+  session: string;
+  chapter: number;
+  label: string;
+} {
+  const base = filename.trim().split(/[\\/]/).pop() || filename;
+  const upper = base.toUpperCase();
+
+  // Caso 1: HERO Session / HERO 5 Session / HERO 4 / HERO 5
+  // Primer capítulo: GOPR0123.MP4 (Capítulo 1)
+  const goprMatch = upper.match(/^GOPR(\d{4})\.(MP4|MOV)$/);
+  if (goprMatch) {
+    return {
+      isGoPro: true,
+      session: goprMatch[1],
+      chapter: 1,
+      label: `Capítulo 1 (Sesión ${goprMatch[1]})`,
+    };
+  }
+  // Capítulos posteriores: GP010123.MP4 (Capítulo 2), GP020123.MP4 (Capítulo 3)
+  const gpMatch = upper.match(/^GP(\d{2})(\d{4})\.(MP4|MOV)$/);
+  if (gpMatch) {
+    const chapterNum = parseInt(gpMatch[1], 10) + 1;
+    return {
+      isGoPro: true,
+      session: gpMatch[2],
+      chapter: chapterNum,
+      label: `Capítulo ${chapterNum} (Sesión ${gpMatch[2]})`,
+    };
+  }
+
+  // Caso 2: HERO 6, 7, 8, 9, 10, 11, 12, 13 (H.264 o HEVC)
+  // GH010123.MP4 (Capítulo 1), GH020123.MP4 (Capítulo 2)
+  const modernMatch = upper.match(/^G[HXSA](\d{2})(\d{4})\.(MP4|MOV)$/);
+  if (modernMatch) {
+    const chapterNum = parseInt(modernMatch[1], 10);
+    return {
+      isGoPro: true,
+      session: modernMatch[2],
+      chapter: chapterNum,
+      label: `Capítulo ${chapterNum} (Sesión ${modernMatch[2]})`,
+    };
+  }
+
+  return {
+    isGoPro: false,
+    session: '',
+    chapter: 0,
+    label: 'Clip de vídeo',
+  };
+}
+
+/**
+ * Ordena una lista de archivos de vídeo cronológicamente, detectando automáticamente
+ * las secuencias de capítulos de cámaras GoPro (HERO Session, HERO 5, HERO 7-13, etc.).
+ */
+export function sortGoProFiles(items: VideoFileItem[]): VideoFileItem[] {
+  return [...items].sort((a, b) => {
+    const pa = parseGoProOrder(a.name);
+    const pb = parseGoProOrder(b.name);
+
+    if (pa.isGoPro && pb.isGoPro) {
+      if (pa.session !== pb.session) {
+        return pa.session.localeCompare(pb.session);
+      }
+      return pa.chapter - pb.chapter;
+    }
+
+    if (pa.isGoPro && !pb.isGoPro) return -1;
+    if (!pa.isGoPro && pb.isGoPro) return 1;
+
+    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+/**
+ * Diálogo interactivo para seleccionar múltiples archivos de vídeo (capítulos de GoPro).
+ */
+export async function openMultipleVideosDialog(): Promise<VideoFileItem[]> {
+  if (isTauriEnvironment()) {
+    const selected = await open({
+      multiple: true,
+      directory: false,
+      filters: [
+        {
+          name: 'Vídeos (*.mp4, *.mov, *.mkv)',
+          extensions: ['mp4', 'mov', 'mkv', 'webm', 'm4v'],
+        },
+      ],
+      title: 'Seleccionar capítulos de vídeo GoPro para unir',
+    });
+
+    if (!selected) return [];
+    const paths = Array.isArray(selected) ? selected : [selected];
+    const items: VideoFileItem[] = [];
+
+    for (let i = 0; i < paths.length; i++) {
+      const p = paths[i];
+      if (typeof p === 'string') {
+        const info = await invoke<NativeFileInfo>('get_file_info', { path: p });
+        const name = p.split(/[\\/]/).pop() || `video_${i + 1}.mp4`;
+        const chapter = parseGoProOrder(name);
+        items.push({
+          id: `${p}_${Date.now()}_${i}`,
+          name,
+          path: p,
+          size: info.size,
+          chapterInfo: chapter,
+        });
+      }
+    }
+    return sortGoProFiles(items);
+  }
+
+  // Fallback web
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'video/mp4,video/quicktime,.mp4,.mov,.mkv';
+    input.onchange = () => {
+      if (!input.files || input.files.length === 0) {
+        resolve([]);
+        return;
+      }
+      const files: VideoFileItem[] = [];
+      for (let i = 0; i < input.files.length; i++) {
+        const f = input.files[i];
+        const chapter = parseGoProOrder(f.name);
+        files.push({
+          id: `${f.name}_${Date.now()}_${i}`,
+          name: f.name,
+          path: f.name,
+          size: f.size,
+          chapterInfo: chapter,
+        });
+      }
+      resolve(sortGoProFiles(files));
+    };
+    input.click();
+  });
+}
+
+/**
+ * Diálogo para elegir la ruta de guardado del archivo unido.
+ */
+export async function saveVideoDialog(suggestedName: string): Promise<string | null> {
+  if (isTauriEnvironment()) {
+    const selected = await save({
+      defaultPath: suggestedName,
+      filters: [
+        {
+          name: 'Vídeo MP4 (*.mp4)',
+          extensions: ['mp4'],
+        },
+      ],
+      title: 'Guardar vídeo GoPro unido',
+    });
+    return selected || null;
+  }
+  return suggestedName;
+}
+
+/**
+ * Concatena múltiples archivos de vídeo en disco sin recodificación (-c copy)
+ * a través de FFmpeg nativo, preservando el 100% de calidad y sincronía de audio.
+ */
+export async function concatenateVideos(inputPaths: string[], outputPath: string): Promise<string> {
+  if (!isTauriEnvironment()) {
+    throw new Error('La unión de vídeos nativa con FFmpeg requiere el entorno de escritorio Tachyon Studio.');
+  }
+  return await invoke<string>('concatenate_videos', {
+    inputs: inputPaths,
+    outputPath,
+  });
+}
+
 

@@ -417,6 +417,73 @@ mod commands {
 
         Ok(stderr_str)
     }
+
+    #[tauri::command]
+    pub fn concatenate_videos(inputs: Vec<String>, output_path: String) -> Result<String, String> {
+        if inputs.is_empty() {
+            return Err("No se han seleccionado archivos de vídeo para unir.".to_string());
+        }
+
+        if inputs.len() == 1 {
+            std::fs::copy(&inputs[0], &output_path)
+                .map_err(|e| format!("Error al copiar el archivo: {}", e))?;
+            return Ok("Archivo único copiado con éxito.".to_string());
+        }
+
+        let ffmpeg_path = locate_ffmpeg_executable().ok_or_else(|| {
+            "FFmpeg no está disponible en el sistema. Asegúrate de tener FFmpeg instalado para unir vídeos sin pérdida.".to_string()
+        })?;
+
+        let temp_dir = std::env::temp_dir();
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        let list_path = temp_dir.join(format!("tachyon_gopro_concat_{}.txt", timestamp));
+
+        {
+            let mut list_file = File::create(&list_path)
+                .map_err(|e| format!("No se pudo crear el archivo temporal de lista: {}", e))?;
+
+            for input in &inputs {
+                let forward = input.replace('\\', "/").replace('\'', "'\\''");
+                writeln!(list_file, "file '{}'", forward)
+                    .map_err(|e| format!("Error al escribir en la lista temporal: {}", e))?;
+            }
+            list_file
+                .sync_all()
+                .map_err(|e| format!("Error sincronizando lista temporal: {}", e))?;
+        }
+
+        // -f concat -safe 0 -i list.txt -c copy -movflags +faststart output.mp4
+        let mut cmd = std::process::Command::new(&ffmpeg_path);
+        cmd.args([
+            "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", &list_path.to_string_lossy(),
+            "-c", "copy",
+            "-movflags", "+faststart",
+            &output_path,
+        ]);
+
+        #[cfg(windows)]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+        let output = cmd.output().map_err(|e| {
+            let _ = std::fs::remove_file(&list_path);
+            format!("Error al ejecutar FFmpeg: {}", e)
+        })?;
+
+        let _ = std::fs::remove_file(&list_path);
+
+        if !output.status.success() {
+            let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+            return Err(format!("FFmpeg falló al unir los vídeos: {}", stderr_str));
+        }
+
+        Ok("Vídeos unidos con éxito sin pérdida de calidad.".to_string())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -444,6 +511,7 @@ pub fn run() {
             commands::extract_zip_video_to_temp,
             commands::detect_ffmpeg,
             commands::run_ffmpeg_command,
+            commands::concatenate_videos,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

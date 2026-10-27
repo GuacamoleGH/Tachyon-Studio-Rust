@@ -24,6 +24,7 @@ import { VehicleProfile, deriveProfileFromAppConfig, PRESET_GASOLINA_ESTANDAR, l
 import { OverlayTemplate, loadTemplateFromStorage as loadStoredTemplate, TEMPLATE_MYCHRON_5 } from '../../core/templates/templateModel';
 import { MapTileManager } from '../../engine/maps/MapTileManager';
 import { RenderModal } from './RenderModal';
+import { VideoJoinerModal } from '../components/VideoJoinerModal';
 import { formatTimeMinutes, formatDurationHuman } from '../../core/utils/timeFormat';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import {
@@ -79,6 +80,7 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [overlayOpacity, setOverlayOpacity] = useState<number>(1.0);
   const [isRenderModalOpen, setIsRenderModalOpen] = useState<boolean>(false);
+  const [isJoinerModalOpen, setIsJoinerModalOpen] = useState<boolean>(false);
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
 
   // Puntos de corte para la exportación de vídeo (Inicio / Fin)
@@ -219,6 +221,36 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
       }
     }
     videoFileInputRef.current?.click();
+  };
+
+  const handleJoinedVideoLinked = async (joinedPath: string) => {
+    setIsJoinerModalOpen(false);
+    if (isTauriEnvironment()) {
+      try {
+        const info = await invoke<NativeFileInfo>('get_file_info', { path: joinedPath });
+        const tauriSource = createTauriFileSource(joinedPath, info.size);
+        const assetUrl = convertFileSrc(joinedPath);
+        const name = joinedPath.split(/[\\/]/).pop() || 'GoPro_Completo.mp4';
+
+        session.videoPath = joinedPath;
+        session.videoSource = tauriSource;
+        session.videoBlob = undefined;
+        session.videoFileName = name;
+        session.hasVideo = true;
+        session.videoOversized = false;
+        session.videoLoadWarning = undefined;
+        session.videoUrl = assetUrl;
+
+        setVideoUrl(assetUrl);
+        setVideoLoadError(null);
+        if (videoRef.current) {
+          videoRef.current.src = assetUrl;
+          videoRef.current.load();
+        }
+      } catch (e) {
+        console.error('Error al vincular vídeo GoPro unido:', e);
+      }
+    }
   };
 
   // Actualizar opacidad del renderizador
@@ -479,6 +511,16 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
             <span>{videoUrl ? 'Cambiar Vídeo' : 'Vincular Vídeo MP4'}</span>
           </button>
 
+          {/* Unir capítulos de GoPro */}
+          <button
+            onClick={() => setIsJoinerModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] text-[#00E5FF] border border-[#00E5FF]/40 transition-colors cursor-pointer shadow-sm"
+            title="Unir múltiples vídeos / capítulos de GoPro en un solo archivo continuo sin pérdida y vincularlo"
+          >
+            <Film className="w-3.5 h-3.5" />
+            <span>Unir Vídeos GoPro</span>
+          </button>
+
           {/* Control de opacidad del overlay */}
           <div className="flex items-center gap-2 text-xs font-mono text-[#8B9CB0]">
             <span>Opacidad:</span>
@@ -551,13 +593,23 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
             <span className="text-xs text-[#8B9CB0] mt-1 max-w-sm mb-3">
               Esta sesión no incluye pista de vídeo activa o puedes vincular el archivo de vídeo MP4 original.
             </span>
-            <button
-              onClick={handleLinkVideoClick}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#00E5FF] hover:bg-[#00cce6] text-[#090C0E] transition-all cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Vincular archivo video.mp4</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleLinkVideoClick}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#00E5FF] hover:bg-[#00cce6] text-[#090C0E] transition-all cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Vincular archivo video.mp4</span>
+              </button>
+
+              <button
+                onClick={() => setIsJoinerModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#1A222B] hover:bg-[#2C3947] text-[#00E5FF] border border-[#00E5FF]/40 transition-all cursor-pointer"
+              >
+                <Film className="w-3.5 h-3.5" />
+                <span>Unir capítulos GoPro (.MP4)</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -812,6 +864,14 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
         initialStartSec={exportStartSec}
         initialEndSec={exportEndSec > 0 ? exportEndSec : duration}
         currentTime={currentTime}
+      />
+
+      {/* Modal para unir vídeos de GoPro */}
+      <VideoJoinerModal
+        isOpen={isJoinerModalOpen}
+        onClose={() => setIsJoinerModalOpen(false)}
+        hasActiveSession={true}
+        onVideoJoined={handleJoinedVideoLinked}
       />
     </div>
   );

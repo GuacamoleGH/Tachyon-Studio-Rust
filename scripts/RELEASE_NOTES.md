@@ -1,22 +1,19 @@
-## 🏎️ Tachyon Studio Desktop v2.3 PC
+## 🏎️ Tachyon Studio Desktop v2.4 PC
 
-Esta versión estrena el **Gestor de Plantillas Personalizadas ("Mis Plantillas")**, permitiendo a los usuarios guardar múltiples plantillas propias ilimitadas, darles nombres personalizados y gestionarlas fácilmente desde el panel lateral.
+Esta versión introduce la herramienta de **Unión Ultra-Rápida de Capítulos de Vídeo GoPro / Cámaras de Acción (Lossless)**, permitiendo combinar automáticamente grabaciones divididas en fragmentos de ~12 minutos (4 GB) en un único archivo MP4 continuo sin pérdida de calidad.
 
 ### 📦 Archivos Disponibles para Descarga:
-* **`Tachyon-Studio-v2.3.0-Setup.exe`**: Instalador oficial para Windows con asistente de instalación paso a paso, icono en el Escritorio y registro en el Menú Inicio de Windows.
-* **`Tachyon-Studio-v2.3.0-Portable.zip`**: Versión portable lista para usar. Descomprimir y hacer doble clic en `tachyon-studio.exe` sin necesidad de instalación previa.
-* **`Tachyon-Studio-v2.3.0.exe`**: Ejecutable autónomo directo sin dependencias externas.
+* **`Tachyon-Studio-v2.4.0-Setup.exe`**: Instalador oficial para Windows con asistente de instalación paso a paso, icono en el Escritorio y registro en el Menú Inicio de Windows.
+* **`Tachyon-Studio-v2.4.0-Portable.zip`**: Versión portable lista para usar. Descomprimir y hacer doble clic en `tachyon-studio.exe` sin necesidad de instalación previa.
+* **`Tachyon-Studio-v2.4.0.exe`**: Ejecutable autónomo directo sin dependencias externas.
 
 ---
 
-### ✨ Novedades y Mejoras en v2.3 PC:
-* **Gestor de Múltiples Plantillas del Usuario ("Mis Plantillas")**:
-  - Posibilidad de crear, editar, renombrar y guardar tantas plantillas como desees.
-  - **Edición directa de nombre**: Campo de texto interactivo en la barra superior para bautizar tus plantillas en cualquier momento.
-  - **Sección en barra lateral**: Muestra la lista de todas tus plantillas con su resolución y conteo de widgets.
-  - **Carga instantánea**: Al hacer clic sobre cualquier plantilla de tu lista, se carga en el editor y se sincroniza automáticamente con el reproductor de vídeo.
-  - **Botón "+ Guardar como Nueva"**: Crea rápidamente variantes o copias independientes de tus diseños.
-  - **Duplicar y Eliminar**: Botones directos por plantilla en la barra lateral con confirmación de seguridad.
-  - **Importación Inteligente**: Al importar cualquier archivo `.json` de plantilla, se añade directamente a tu catálogo de plantillas propias.
-* **Indicadores visuales de plantilla activa** para saber en todo momento qué disposición estás editando y usando en el reproductor.
-* **Persistencia local automática** en el almacenamiento de la aplicación.
+### ✨ Novedades y Mejoras en v2.4 PC:
+* **Unidor de Capítulos de Vídeo GoPro (Lossless Stream Copy)**:
+  - Diseñado específicamente para cámaras GoPro (HERO Session, HERO 5 Session, HERO 4, 5, 6, 7, 8, 9, 10, 11, 12, 13) y cámaras de acción / dashcam.
+  - **Detección y ordenación cronológica inteligente**: Identifica patrones como `GOPR0001.MP4`, `GP010001.MP4`, `GP020001.MP4` o `GH010001.MP4` y los ordena de forma cronológica automáticamente.
+  - **Velocidad de disco sin recomprimir (-c copy)**: Ensambla archivos pesados de decenas de gigabytes en cuestión de segundos (velocidad de lectura/escritura de tu SSD/disco duro), manteniendo el 100% de la calidad original, resolución, tasa de bits y sincronización de audio.
+  - **Reordenación manual**: Flechas arriba/abajo para personalizar el orden de los fragmentos a voluntad.
+  - **Integración con el Reproductor**: Botón directo *"Unir y Vincular al Reproductor"* para que el vídeo combinado se cargue inmediatamente en tu sesión de telemetría.
+  - **Acceso global**: Disponible desde la barra superior (*Navbar*), desde el reproductor de vídeo y desde el panel de carga.

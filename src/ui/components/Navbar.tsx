@@ -1,5 +1,5 @@
 import React from 'react';
-import { Upload, Zap, Sliders, FileText, PlayCircle, LayoutTemplate } from 'lucide-react';
+import { Upload, Zap, Sliders, FileText, PlayCircle, LayoutTemplate, Film } from 'lucide-react';
 
 export type AppTab = 'summary' | 'profile' | 'player' | 'editor';
 
@@ -9,6 +9,7 @@ interface NavbarProps {
   onTabChange: (tab: AppTab) => void;
   onOpenZipClick: () => void;
   onLoadSyntheticClick: () => void;
+  onOpenGoProJoinerClick?: () => void;
   isLoading: boolean;
   hasSession: boolean;
 }
@@ -19,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onTabChange,
   onOpenZipClick,
   onLoadSyntheticClick,
+  onOpenGoProJoinerClick,
   isLoading,
   hasSession,
 }) => {
@@ -37,7 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 TACHYON<span className="text-[#00E676]">.</span>STUDIO
               </span>
               <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-[#1A222B] text-[#00E5FF] border border-[#2C3947]">
-                v2.3 PC
+                v2.4 PC
               </span>
             </div>
             <p className="text-xs text-[#8B9CB0] truncate max-w-xs">
@@ -105,6 +107,18 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
+        {onOpenGoProJoinerClick && (
+          <button
+            onClick={onOpenGoProJoinerClick}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] text-[#00E5FF] hover:text-[#38EFFF] border border-[#00E5FF]/40 transition-all cursor-pointer disabled:opacity-50"
+            title="Unir capítulos de GoPro divididos en fragmentos de ~12 min en un solo archivo continuo sin pérdida"
+          >
+            <Film className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Unir GoPro</span>
+          </button>
+        )}
+
         <button
           onClick={onLoadSyntheticClick}
           disabled={isLoading}

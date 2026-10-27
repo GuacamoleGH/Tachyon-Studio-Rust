@@ -8,6 +8,7 @@ import { SessionSummaryScreen } from './ui/screens/SessionSummaryScreen';
 import { VehicleProfileScreen } from './ui/screens/VehicleProfileScreen';
 import { VideoPlayerScreen } from './ui/screens/VideoPlayerScreen';
 import { TemplateEditorScreen } from './ui/screens/TemplateEditorScreen';
+import { VideoJoinerModal } from './ui/components/VideoJoinerModal';
 import {
   VehicleProfile,
   deriveProfileFromAppConfig,
@@ -35,6 +36,7 @@ export const App: React.FC = () => {
   const [progressText, setProgressText] = useState('');
   const [progressPercent, setProgressPercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isGoProJoinerOpen, setIsGoProJoinerOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -162,6 +164,7 @@ export const App: React.FC = () => {
         onTabChange={setActiveTab}
         onOpenZipClick={handleOpenZipClick}
         onLoadSyntheticClick={handleLoadSynthetic}
+        onOpenGoProJoinerClick={() => setIsGoProJoinerOpen(true)}
         isLoading={isLoading}
         hasSession={session !== null}
       />
@@ -206,6 +209,18 @@ export const App: React.FC = () => {
           <SessionSummaryScreen session={session} onUpdateSession={setSession} />
         )}
       </main>
+
+      <VideoJoinerModal
+        isOpen={isGoProJoinerOpen}
+        onClose={() => setIsGoProJoinerOpen(false)}
+        hasActiveSession={session !== null}
+        onVideoJoined={() => {
+          setIsGoProJoinerOpen(false);
+          if (session) {
+            setActiveTab('player');
+          }
+        }}
+      />
     </div>
   );
 };

@@ -2,8 +2,8 @@
 $ErrorActionPreference = "Stop"
 
 $repo = "GuacamoleGH/Tachyon-Studio-Rust"
-$tag = "v2.3.0"
-$title = "Tachyon Studio v2.3 PC"
+$tag = "v2.4.0"
+$title = "Tachyon Studio v2.4 PC"
 $body = @"
 ## 🏎️ Tachyon Studio Desktop v2.2 PC
 
@@ -107,15 +107,15 @@ function Upload-Asset($filePath, $assetName) {
 }
 
 # 4. Subir Instalador y Portable
-$installerPath = "src-tauri/target/release/bundle/nsis/Tachyon Studio_2.3.0_x64-setup.exe"
-$portableZipPath = "src-tauri/target/release/Tachyon_Studio_v2.3_PC_Portable.zip"
+$installerPath = "src-tauri/target/release/bundle/nsis/Tachyon Studio_2.4.0_x64-setup.exe"
+$portableZipPath = "src-tauri/target/release/Tachyon_Studio_v2.4_PC_Portable.zip"
 $portableExePath = "src-tauri/target/release/tachyon-studio.exe"
 
-Upload-Asset -filePath $installerPath -assetName "Tachyon-Studio-v2.3.0-Setup.exe"
-Upload-Asset -filePath $portableZipPath -assetName "Tachyon-Studio-v2.3.0-Portable.zip"
-Upload-Asset -filePath $portableExePath -assetName "Tachyon-Studio-v2.3.0.exe"
+Upload-Asset -filePath $installerPath -assetName "Tachyon-Studio-v2.4.0-Setup.exe"
+Upload-Asset -filePath $portableZipPath -assetName "Tachyon-Studio-v2.4.0-Portable.zip"
+Upload-Asset -filePath $portableExePath -assetName "Tachyon-Studio-v2.4.0.exe"
 
 Write-Host "`n=================================================================" -ForegroundColor Green
-Write-Host "   ¡Release v2.3.0 publicada exitosamente en GitHub Releases!" -ForegroundColor Green
+Write-Host "   ¡Release v2.4.0 publicada exitosamente en GitHub Releases!" -ForegroundColor Green
 Write-Host "   URL: $($release.html_url)" -ForegroundColor Cyan
 Write-Host "=================================================================" -ForegroundColor Green

@@ -25,6 +25,7 @@
     "webm-muxer": "^5.1.4"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.13",
     "@tailwindcss/vite": "^4.0.0",
     "@tauri-apps/cli": "^2.0.0",
     "@types/node": "^22.10.0",

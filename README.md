@@ -22,7 +22,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![WebCodecs](https://img.shields.io/badge/WebCodecs-Hardware%20Accel-00E676?style=for-the-badge&logo=webgpu&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API)
-[![Tests](https://img.shields.io/badge/Vitest-49%2F49%20Passing-00E5FF?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Vitest-63%2F63%20Passing-00E5FF?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![License](https://img.shields.io/badge/License-MIT-FFB300?style=for-the-badge)](LICENSE)
 
 [**Características**](#-características-principales) •
@@ -56,8 +56,9 @@ Permite importar paquetes de sesión (`.zip`) o vincular vídeos MP4 externos ju
 - **Sincronización Determinista Fotograma a Fotograma:** Comprobación estricta de marcas de tiempo entre la pista de vídeo y las muestras de telemetría.
 - **Editor Visual Interactivo de Plantillas:** Mueve, escala y personaliza cada widget en tiempo real con 8 manejadores de ajuste, cuadrícula y previsualización interactiva.
 - **Minimapa GPS de Alta Definición con Zoom Dinámico:** Vista centrada y fluida con zoom ajustable desde curvas cerradas / karting (40 m) hasta tramos de montaña completos (1.200 m).
-- **17 Widgets de Competición:** Tacómetros circulares, de barra GT, estilo Forza Motorsport y display horizontal F1 con indicador de marcha, shift lights, círculos G-Meter, altímetro, récords de sesión y coordenadas WGS84.
-- **8 Plantillas Profesionales Listas para Usar:** Diseños inspirados en Forza Motorsport, monoplazas de F1, WRC Rally, tandas de Track Day, karting MyChron 5 y cabinas despejadas.
+- **24 Widgets de Competición:** Tacómetros circulares, de barra GT, estilo Forza Motorsport y display horizontal F1 con indicador de marcha, shift lights, manómetro de turbo (boost), consumo instantáneo, monitor térmico IAT, acelerómetro IMU 3D, círculos G-Meter, altímetro, récords de sesión, precisión GNSS y coordenadas WGS84.
+- **9 Plantillas Profesionales Listas para Usar:** Diseños inspirados en Forza Motorsport, monoplazas de F1, WRC Rally, tandas de Track Day, turbo diagnosis OBD, karting MyChron 5 y cabinas despejadas.
+- **Unidor de Capítulos de Vídeo GoPro:** Herramienta integrada que fusiona en segundos los fragmentos de ~12 minutos de cámaras GoPro en un archivo continuo sin pérdida de calidad.
 - **100% Local y Privado:** Todo el procesamiento se realiza en tu ordenador sin enviar ningún dato o vídeo a servidores externos.
 
 ---
@@ -123,44 +124,50 @@ Tachyon Studio está diseñado específicamente para tratar grabaciones onboard 
 
 ## 📊 Catálogo de Widgets
 
-Tachyon Studio cuenta con una colección de **17 widgets** configurables de diseño automovilístico:
+Tachyon Studio cuenta con una colección de **24 widgets** configurables de instrumentación automovilística. Consulta la **[Guía Visual Completa de Widgets (docs/CATALOGO_WIDGETS.md)](docs/CATALOGO_WIDGETS.md)** para ver todas las capturas y detalles técnicos:
 
-| Widget | Identificador | Descripción | Datos de Entrada |
-| :--- | :--- | :--- | :--- |
-| **Tacómetro Circular** | `tachometer_circular` | Reloj analógico con aguja fluida, arco de redline, marcha integrada y display digital. | OBD (`engine_rpm`) |
-| **Tacómetro Forza Motorsport** | `tachometer_forza` | Cuadro de instrumentos curvo moderno con buje central brillante para marcha y velocímetro. | OBD + GPS |
-| **Tacómetro Horizontal F1/GT3** | `tachometer_horizontal` | Display superior de competición con marcha a la izquierda, barra LED de 26 segmentos y velocímetro. | OBD + GPS |
-| **Tacómetro de Barra GT** | `tachometer_bar` | Barra horizontal de competición con gradiente dinámico y marcas numéricas. | OBD (`engine_rpm`) |
-| **Shift Lights** | `shift_lights` | Tira de LEDs progresivos con parpadeo estroboscópico al régimen de cambio (*shift point*). | OBD + Perfil |
-| **Indicador de Marcha (Gear)** | `gear_indicator` | Marcha engranada de gran tamaño (`1` a `6`, `N`, `R`) calculada por relación de transmisión o leída por OBD. | RPM / Velocidad |
-| **Velocímetro Digital** | `speedometer` | Velocímetro de alto contraste con selector de fuente (GPS u OBD) y unidades ($\text{km/h}$ o $\text{mph}$). | `gps_speed_kmh` / `obd_speed_kmh` |
-| **Pedales Freno y Gas** | `brake_throttle` | Doble barra vertical estilo telemetría F1 (acelerador en verde neón, frenada estimada en rojo). | `throttle_pct` + $\text{G}_{\text{long}}$ |
-| **Barra de Acelerador** | `throttle` | Barra vertical compacta de apertura de mariposa ($0 \dots 100\%$). | `throttle_pct` (OBD) |
-| **Temperatura de Motor** | `coolant_temp` | Termómetro digital de refrigerante con alerta de color ante sobrecalentamiento. | `coolant_temp_c` (OBD) |
-| **G-Meter (Círculo de Kamm)** | `g_meter` | Visualizador biaxial de aceleración lateral y longitudinal con círculos de adherencia ($1.0\text{G}$, $1.5\text{G}$, $2.0\text{G}$). | $\text{IMU}_{\text{lat}}$ + $\text{IMU}_{\text{long}}$ |
-| **Barras de Fuerzas G** | `g_force_bars` | Barras lineales independientes para fuerzas G de curva y aceleración/frenada. | $\text{IMU}_{\text{lat}}$ + $\text{IMU}_{\text{long}}$ |
-| **Trazada GPS / Minimapa** | `map` | Minimapa fluido centrado en el coche con zoom configurable (40 m a 1.200 m) o circuito estático. | GPS (`lat`, `lon`, `bearing`) |
-| **Gráfica de Velocidad** | `speed_graph` | Gráfica continua de perfil de velocidad con aguja sincronizada en el instante actual. | Velocidad vs. Tiempo |
-| **Cronómetro de Sesión** | `session_timer` | Contador digital de tiempo transcurrido (soporta tiempos negativos $t < 0$). | Reloj de sincronización |
-| **Altitud GPS** | `altitude` | Altitud barométrica/satelital en metros o pies. | GPS (`altitude_m`) |
-| **Brújula / Rumbo GPS** | `compass` | Rosa de los vientos digital con rumbo cardinal y grados ($0^\circ \dots 359^\circ$). | GPS (`bearing_deg`) |
-| **Récords de Sesión (Max Stats)** | `max_stats` | Panel de hitos máximos: Velocidad punta ($\text{V}_{\text{MAX}}$), Fuerza lateral punta ($\text{G}_{\text{MAX}}$) y RPM máxima. | Récords acumulados |
-| **Coordenadas GPS (WGS84)** | `gps_coords` | Coordenadas exactas en grados decimales con estado del enlace satelital (**FIX 3D**). | GPS (`lat`, `lon`) |
+| Vista Previa | Widget | Identificador | Descripción | Datos de Entrada |
+| :---: | :--- | :--- | :--- | :--- |
+| <img src="docs/assets/widgets/tachometer_circular.png" width="100"/> | **Tacómetro Circular** | `tachometer_circular` | Reloj analógico con aguja fluida, arco de redline, marcha y display digital. | OBD (`engine_rpm`) |
+| <img src="docs/assets/widgets/tachometer_forza.png" width="100"/> | **Tacómetro Forza Motorsport** | `tachometer_forza` | Cuadro curvo moderno con buje central brillante para marcha y velocímetro. | OBD + GPS |
+| <img src="docs/assets/widgets/tachometer_bar.png" width="110"/> | **Tacómetro de Barra GT** | `tachometer_bar` | Barra horizontal de competición con gradiente dinámico y marcas numéricas. | OBD (`engine_rpm`) |
+| <img src="docs/assets/widgets/tachometer_horizontal.png" width="110"/> | **Tacómetro Horizontal F1/GT3** | `tachometer_horizontal` | Display de monoplaza con marcha integrada y barra LED de 26 segmentos. | OBD + GPS |
+| <img src="docs/assets/widgets/shift_lights.png" width="110"/> | **Shift Lights** | `shift_lights` | Tira de LEDs progresivos con parpadeo estroboscópico al régimen de corte. | OBD + Perfil |
+| <img src="docs/assets/widgets/speedometer.png" width="90"/> | **Velocímetro Digital** | `speedometer` | Velocímetro numérico con selector de fuente (GPS u OBD) y unidades ($\text{km/h}$ o $\text{mph}$). | `gps_speed_kmh` / `obd_speed_kmh` |
+| <img src="docs/assets/widgets/gear_indicator.png" width="60"/> | **Indicador de Marcha (Gear)** | `gear_indicator` | Marcha de gran formato (`1` a `8`, `N`, `R`) con lectura directa o calculada. | OBD / Ratio |
+| <img src="docs/assets/widgets/throttle.png" width="40"/> | **Barra de Acelerador** | `throttle` | Barra vertical compacta de apertura de mariposa ($0 \dots 100\%$). | `throttle_pct` (OBD) |
+| <img src="docs/assets/widgets/brake_throttle.png" width="60"/> | **Pedales Freno y Gas** | `brake_throttle` | Doble barra estilo F1 (acelerador en verde neón, frenada estimada en rojo). | `throttle_pct` + $\text{G}_{\text{long}}$ |
+| <img src="docs/assets/widgets/boost.png" width="80"/> | **Presión de Turbo (Boost)** | `boost` | Manómetro digital con arco dinámico de sobrealimentación y vacío (bar / PSI). | `boost_bar` (OBD) |
+| <img src="docs/assets/widgets/fuel_consumption.png" width="80"/> | **Consumo de Combustible** | `fuel_consumption` | Monitor de consumo instantáneo en L/100km (o MPG) con barras de eficiencia. | `fuel_l100km` (OBD) |
+| <img src="docs/assets/widgets/coolant_temp.png" width="80"/> | **Temperatura Refrigerante** | `coolant_temp` | Termómetro digital de refrigerante con alerta de color ante sobrecalentamiento. | `coolant_temp_c` (OBD) |
+| <img src="docs/assets/widgets/intake_temp.png" width="80"/> | **Temperatura Admisión (IAT)** | `intake_temp` | Monitor térmico de aire tras intercooler para detectar pérdidas de potencia (*heat soak*). | `intake_temp_c` (OBD) |
+| <img src="docs/assets/widgets/g_meter.png" width="70"/> | **G-Meter (Círculo de Kamm)** | `g_meter` | Diana biaxial de aceleración lateral y longitudinal con círculos ($1.0\text{G}$, $1.5\text{G}$, $2.0\text{G}$). | $\text{IMU}_{\text{lat}}$ + $\text{IMU}_{\text{long}}$ |
+| <img src="docs/assets/widgets/g_force_bars.png" width="80"/> | **Barras de Fuerzas G** | `g_force_bars` | Barras lineales independientes para fuerzas G de curva y aceleración/frenada. | $\text{IMU}_{\text{lat}}$ + $\text{IMU}_{\text{long}}$ |
+| <img src="docs/assets/widgets/imu_raw.png" width="80"/> | **Aceleración Bruta IMU 3D** | `imu_raw` | Monitor triaxial de aceleraciones brutas en $\text{m/s}^2$ en los ejes X, Y y Z. | $\text{accel\_x, y, z}$ |
+| <img src="docs/assets/widgets/map.png" width="80"/> | **Trazada GPS / Minimapa** | `map` | Minimapa con trazada en vivo, zoom configurable y soporte de mapas callejeros. | GPS (`lat`, `lon`, `bearing`) |
+| <img src="docs/assets/widgets/speed_graph.png" width="90"/> | **Gráfica de Velocidad** | `speed_graph` | Oscilograma continuo de perfil de velocidad sincronizado al instante actual. | Velocidad vs. Tiempo |
+| <img src="docs/assets/widgets/session_timer.png" width="80"/> | **Cronómetro de Sesión** | `session_timer` | Contador digital de tiempo transcurrido (soporta tiempos negativos $t < 0$). | Reloj de sincronización |
+| <img src="docs/assets/widgets/altitude.png" width="70"/> | **Altitud GPS** | `altitude` | Altitud satelital en metros o pies. | GPS (`altitude_m`) |
+| <img src="docs/assets/widgets/compass.png" width="60"/> | **Brújula / Rumbo GPS** | `compass` | Rosa de los vientos digital con rumbo cardinal y grados ($0^\circ \dots 359^\circ$). | GPS (`bearing_deg`) |
+| <img src="docs/assets/widgets/max_stats.png" width="80"/> | **Récords de Sesión (Max Stats)** | `max_stats` | Panel de hitos máximos: $\text{V}_{\text{MAX}}$, $\text{G}_{\text{MAX}}$ y $\text{RPM}_{\text{MAX}}$. | Récords acumulados |
+| <img src="docs/assets/widgets/gps_coords.png" width="80"/> | **Coordenadas GPS (WGS84)** | `gps_coords` | Coordenadas exactas en grados decimales con estado satelital. | GPS (`lat`, `lon`) |
+| <img src="docs/assets/widgets/gps_accuracy.png" width="70"/> | **Precisión Satelital (GNSS)** | `gps_accuracy` | Gráfico de 4 barras de cobertura satelital e incertidumbre en metros. | `accuracy_m` |
 
 ---
 
 ## 🎨 Plantillas de Instrumentación Integradas
 
-Tachyon Studio incluye **8 plantillas preconfiguradas** listas para usar y exportar con un solo clic:
+Tachyon Studio incluye **9 plantillas preconfiguradas** listas para usar y exportar con un solo clic:
 
-1. **Forza Motorsport HUD:** Tacómetro curvo estilo Forza con marcha en buje central, velocímetro integrado, pedales, G-Meter, minimapa a 120 m y gráfica de velocidad.
-2. **Fórmula 1 & GT Display (Horizontal):** Tacómetro LED superior con marcha integrada, minimapa deportivo a 100 m, récords de sesión (V-MAX) y pedales duales.
-3. **WRC Rally & Montaña (Zoom Curvas):** Súper zoom de 80 metros en el minimapa, tacómetro Forza, altímetro, brújula de rumbo y barras de fuerzas G.
-4. **Track Day Pro (Telemetría Completa):** Máxima instrumentación para circuito: tacómetro Forza, minimapa de 120 m, temperatura de motor, récords de sesión y barras G.
-5. **Clean Cockpit (Ultra Panorámica):** Máxima visibilidad del asfalto: tacómetro en esquina inferior y minimapa deportivo a 100 m en esquina superior.
-6. **Cockpit GT3 Pro:** Tacómetro de barra GT, indicador gigante de marcha, pedales duales, temperatura de refrigerante y minimapa.
-7. **MyChron 5 (Display Karting):** Disposición clásica de volante de karting con tacómetro circular, shift lights superiores, velocímetro y gráfica.
-8. **Barra Inferior Minimalista:** Instrumentación compacta concentrada en el borde inferior para no tapar la vista del trazado.
+1. **Turbo & Diagnosis OBD-II Pro:** Disposición completa con manómetro de turbo, consumo instantáneo, temperatura de admisión IAT, tacómetro Forza y minimapa.
+2. **Forza Motorsport HUD:** Tacómetro curvo estilo Forza con marcha en buje central, velocímetro integrado, pedales, G-Meter, minimapa a 120 m y gráfica de velocidad.
+3. **Fórmula 1 & GT Display (Horizontal):** Tacómetro LED superior con marcha integrada, minimapa deportivo a 100 m, récords de sesión (V-MAX) y pedales duales.
+4. **WRC Rally & Montaña (Zoom Curvas):** Súper zoom de 80 metros en el minimapa, tacómetro Forza, altímetro, brújula de rumbo y barras de fuerzas G.
+5. **Track Day Pro (Telemetría Completa):** Máxima instrumentación para circuito: tacómetro Forza, minimapa de 120 m, temperatura de motor, récords de sesión y barras G.
+6. **Clean Cockpit (Ultra Panorámica):** Máxima visibilidad del asfalto: tacómetro en esquina inferior y minimapa deportivo a 100 m en esquina superior.
+7. **Cockpit GT3 Pro:** Tacómetro de barra GT, indicador gigante de marcha, pedales duales, temperatura de refrigerante y minimapa.
+8. **MyChron 5 (Display Karting):** Disposición clásica de volante de karting con tacómetro circular, shift lights superiores, velocímetro y gráfica.
+9. **Barra Inferior Minimalista:** Instrumentación compacta concentrada en el borde inferior para no tapar la vista del trazado.
 
 > [!TIP]
 > Puedes modificar cualquier plantilla en el **Editor de Plantillas**, añadir o eliminar widgets, cambiar su posición y tamaño, y tus cambios quedarán guardados de forma automática y persistente en la aplicación.

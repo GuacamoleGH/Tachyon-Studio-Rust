@@ -30,7 +30,15 @@ Esta versión añade soporte nativo completo para todos los parámetros de telem
   - Sanitización automática de nombres de archivo de vídeo en Windows (corrección de dos puntos y barras de fecha).
 "@
 
-# 1. Obtener Token de Git Credential Manager
+# 1. Leer el markdown de notas de versión en UTF8 puro
+$notesPath = Join-Path $PSScriptRoot "RELEASE_NOTES.md"
+if (Test-Path $notesPath) {
+    $body = [System.IO.File]::ReadAllText($notesPath, [System.Text.Encoding]::UTF8)
+} else {
+    $body = "Release $tag"
+}
+
+# 2. Obtener Token de Git Credential Manager
 $credOutput = "protocol=https`nhost=github.com" | git credential fill
 $tokenLine = ($credOutput | Select-String "password=").Line
 if (-not $tokenLine) {

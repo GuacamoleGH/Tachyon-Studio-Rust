@@ -625,6 +625,7 @@ export function scaleTemplate(template: OverlayTemplate, newWidth: number, newHe
 }
 
 const TEMPLATE_STORAGE_KEY = 'tachyon_saved_custom_template';
+const CUSTOM_TEMPLATES_STORAGE_KEY = 'tachyon_custom_templates_list';
 
 export function saveTemplateToStorage(template: OverlayTemplate): void {
   try {
@@ -648,4 +649,79 @@ export function loadTemplateFromStorage(): OverlayTemplate | null {
     console.warn('Error leyendo plantilla de localStorage:', e);
   }
   return null;
+}
+
+/**
+ * Carga la lista completa de plantillas personalizadas creadas por el usuario desde localStorage.
+ */
+export function loadCustomTemplatesFromStorage(): OverlayTemplate[] {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const data = localStorage.getItem(CUSTOM_TEMPLATES_STORAGE_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+      // Compatibilidad regresiva: si existía una plantilla guardada única
+      const single = localStorage.getItem(TEMPLATE_STORAGE_KEY);
+      if (single) {
+        try {
+          const parsedSingle = JSON.parse(single);
+          if (parsedSingle && parsedSingle.name) {
+            const list = [parsedSingle];
+            localStorage.setItem(CUSTOM_TEMPLATES_STORAGE_KEY, JSON.stringify(list));
+            return list;
+          }
+        } catch {
+          // ignorar
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Error leyendo lista de plantillas de localStorage:', e);
+  }
+  return [];
+}
+
+/**
+ * Guarda la lista de plantillas personalizadas en localStorage.
+ */
+export function saveCustomTemplatesToStorage(templates: OverlayTemplate[]): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(CUSTOM_TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+    }
+  } catch (e) {
+    console.warn('Error guardando lista de plantillas en localStorage:', e);
+  }
+}
+
+/**
+ * Guarda o actualiza una plantilla en la lista de plantillas del usuario.
+ */
+export function saveCustomTemplate(template: OverlayTemplate): OverlayTemplate[] {
+  const currentList = loadCustomTemplatesFromStorage();
+  const existingIdx = currentList.findIndex((t) => t.id === template.id);
+  let updatedList: OverlayTemplate[];
+  if (existingIdx >= 0) {
+    updatedList = [...currentList];
+    updatedList[existingIdx] = template;
+  } else {
+    updatedList = [template, ...currentList];
+  }
+  saveCustomTemplatesToStorage(updatedList);
+  saveTemplateToStorage(template);
+  return updatedList;
+}
+
+/**
+ * Elimina una plantilla personalizada de la lista del usuario por su ID.
+ */
+export function deleteCustomTemplate(templateId: string): OverlayTemplate[] {
+  const currentList = loadCustomTemplatesFromStorage();
+  const updatedList = currentList.filter((t) => t.id !== templateId);
+  saveCustomTemplatesToStorage(updatedList);
+  return updatedList;
 }

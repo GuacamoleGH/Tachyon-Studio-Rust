@@ -1,15 +1,40 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   TEMPLATE_MYCHRON_5,
   TEMPLATE_MINIMALISTA,
   BUILTIN_TEMPLATES,
   scaleTemplate,
+  loadCustomTemplatesFromStorage,
+  saveCustomTemplate,
+  deleteCustomTemplate,
 } from '../src/core/templates/templateModel';
 import { OverlayRenderer } from '../src/engine/canvas/overlayRenderer';
 import { SpeedometerWidget } from '../src/engine/widgets/SpeedometerWidget';
 import { GMeterWidget } from '../src/engine/widgets/GMeterWidget';
 
 describe('Overlay Template Model & Serialization', () => {
+  beforeEach(() => {
+    const memoryStore: Record<string, string> = {};
+    const mockStorage = {
+      getItem: (key: string) => memoryStore[key] ?? null,
+      setItem: (key: string, value: string) => {
+        memoryStore[key] = String(value);
+      },
+      removeItem: (key: string) => {
+        delete memoryStore[key];
+      },
+      clear: () => {
+        for (const k of Object.keys(memoryStore)) {
+          delete memoryStore[k];
+        }
+      },
+    };
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: mockStorage,
+      writable: true,
+      configurable: true,
+    });
+  });
   it('valida que la plantilla MyChron 5 contiene los 7 widgets base con posiciones válidas', () => {
     expect(TEMPLATE_MYCHRON_5.widgets.length).toBe(7);
     for (const w of TEMPLATE_MYCHRON_5.widgets) {
@@ -76,5 +101,45 @@ describe('Overlay Template Model & Serialization', () => {
         expect(w.bounds.height).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('guarda, lista y elimina múltiples plantillas personalizadas en storage', () => {
+    // Si localStorage no está definido en este entorno, saltar
+    if (typeof localStorage === 'undefined') return;
+
+    const initial = loadCustomTemplatesFromStorage();
+    expect(initial).toEqual([]);
+
+    const custom1 = {
+      ...TEMPLATE_MYCHRON_5,
+      id: 'custom_101',
+      name: 'Mi Plantilla Karting 1',
+    };
+    const custom2 = {
+      ...TEMPLATE_MINIMALISTA,
+      id: 'custom_102',
+      name: 'Mi Plantilla Minimal 2',
+    };
+
+    saveCustomTemplate(custom1);
+    saveCustomTemplate(custom2);
+
+    const saved = loadCustomTemplatesFromStorage();
+    expect(saved.length).toBe(2);
+    expect(saved.some((t) => t.id === 'custom_101' && t.name === 'Mi Plantilla Karting 1')).toBe(true);
+    expect(saved.some((t) => t.id === 'custom_102' && t.name === 'Mi Plantilla Minimal 2')).toBe(true);
+
+    // Actualizar nombre de una plantilla existente
+    const custom1Updated = { ...custom1, name: 'Mi Plantilla Karting Renombrada' };
+    saveCustomTemplate(custom1Updated);
+    const updatedList = loadCustomTemplatesFromStorage();
+    expect(updatedList.length).toBe(2);
+    expect(updatedList.find((t) => t.id === 'custom_101')?.name).toBe('Mi Plantilla Karting Renombrada');
+
+    // Eliminar plantilla
+    deleteCustomTemplate('custom_101');
+    const afterDelete = loadCustomTemplatesFromStorage();
+    expect(afterDelete.length).toBe(1);
+    expect(afterDelete[0].id).toBe('custom_102');
   });
 });

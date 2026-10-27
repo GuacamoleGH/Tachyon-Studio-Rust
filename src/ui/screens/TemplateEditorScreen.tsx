@@ -13,12 +13,17 @@ import {
   Pause,
   Undo2,
   Redo2,
+  Plus,
+  Copy,
 } from 'lucide-react';
 import { WidgetBounds, WidgetType } from '../../engine/widgets/types';
 import { OverlayRenderer } from '../../engine/canvas/overlayRenderer';
 import {
   BUILTIN_TEMPLATES,
   loadTemplateFromStorage,
+  loadCustomTemplatesFromStorage,
+  saveCustomTemplate,
+  deleteCustomTemplate,
   OverlayTemplate,
   saveTemplateToStorage,
   scaleTemplate,
@@ -78,6 +83,11 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
 
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>('tachometer_circular');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  // Lista de plantillas personalizadas guardadas por el usuario
+  const [customTemplates, setCustomTemplates] = useState<OverlayTemplate[]>(() => {
+    return loadCustomTemplatesFromStorage();
+  });
 
   // Estado de interactividad / simulación
   const [currentTime, setCurrentTime] = useState<number>(10.0);
@@ -773,10 +783,71 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   removeSelectedWidgetRef.current = removeSelectedWidget;
 
   const handleSaveTemplate = () => {
-    saveTemplateToStorage(template);
-    onTemplateUpdated?.(template);
-    setSaveMessage('¡Plantilla guardada y aplicada al reproductor con éxito!');
+    let tplToSave = template;
+    // Si la plantilla actual proviene de las integradas, crear un ID único para la del usuario
+    if (!tplToSave.id.startsWith('custom_')) {
+      tplToSave = {
+        ...template,
+        id: `custom_${Date.now()}`,
+        name: template.name.includes('(Personalizada)') ? template.name : `${template.name} (Personalizada)`,
+      };
+      setTemplate(tplToSave);
+    }
+    const updated = saveCustomTemplate(tplToSave);
+    setCustomTemplates(updated);
+    onTemplateUpdated?.(tplToSave);
+    setSaveMessage(`¡Plantilla "${tplToSave.name}" guardada en Mis Plantillas!`);
     setTimeout(() => setSaveMessage(null), 3500);
+  };
+
+  const handleSaveAsNewTemplate = () => {
+    const newId = `custom_${Date.now()}`;
+    const baseName = template.name.replace(/\s*\(Copia\s*\d*\)$/, '').replace(/\s*\(Nueva\)$/, '');
+    const newName = `${baseName} (Nueva)`;
+    const newTemplate: OverlayTemplate = {
+      ...template,
+      id: newId,
+      name: newName,
+    };
+    setTemplate(newTemplate);
+    const updated = saveCustomTemplate(newTemplate);
+    setCustomTemplates(updated);
+    onTemplateUpdated?.(newTemplate);
+    setSaveMessage(`¡Nueva plantilla "${newName}" creada y guardada!`);
+    setTimeout(() => setSaveMessage(null), 3500);
+  };
+
+  const handleDeleteCustomTemplate = (idToDelete: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const target = customTemplates.find((ct) => ct.id === idToDelete);
+    const confirmText = target ? `¿Deseas eliminar la plantilla "${target.name}"?` : '¿Deseas eliminar esta plantilla?';
+    if (!window.confirm(confirmText)) return;
+
+    const updated = deleteCustomTemplate(idToDelete);
+    setCustomTemplates(updated);
+    if (template.id === idToDelete) {
+      const fallback = updated[0] || TEMPLATE_MYCHRON_5;
+      setTemplate(fallback);
+      saveTemplateToStorage(fallback);
+      onTemplateUpdated?.(fallback);
+    }
+    setSaveMessage('Plantilla eliminada de Mis Plantillas');
+    setTimeout(() => setSaveMessage(null), 2500);
+  };
+
+  const handleDuplicateCustomTemplate = (targetTemplate: OverlayTemplate, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newId = `custom_${Date.now()}`;
+    const newName = `${targetTemplate.name} (Copia)`;
+    const duplicated: OverlayTemplate = {
+      ...targetTemplate,
+      id: newId,
+      name: newName,
+    };
+    const updated = saveCustomTemplate(duplicated);
+    setCustomTemplates(updated);
+    setSaveMessage(`¡Plantilla "${newName}" duplicada!`);
+    setTimeout(() => setSaveMessage(null), 3000);
   };
 
   const handleExportJson = () => {
@@ -798,10 +869,17 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
         try {
           const parsed = JSON.parse(event.target?.result as string);
           if (parsed.widgets && Array.isArray(parsed.widgets)) {
-            setTemplate(parsed);
-            saveTemplateToStorage(parsed);
-            onTemplateUpdated?.(parsed);
-            setSaveMessage(`¡Plantilla "${parsed.name || 'importada'}" cargada y aplicada con éxito!`);
+            const customId = `custom_${Date.now()}`;
+            const templateToImport: OverlayTemplate = {
+              ...parsed,
+              id: customId,
+              name: parsed.name || 'Plantilla Importada',
+            };
+            setTemplate(templateToImport);
+            const updated = saveCustomTemplate(templateToImport);
+            setCustomTemplates(updated);
+            onTemplateUpdated?.(templateToImport);
+            setSaveMessage(`¡Plantilla "${templateToImport.name}" importada y guardada en Mis Plantillas!`);
             setTimeout(() => setSaveMessage(null), 3500);
           } else {
             alert('El archivo no contiene una plantilla válida.');
@@ -823,20 +901,30 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
             <Sliders className="w-4 h-4 stroke-[2.2]" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-[#F0F4F8] flex items-center gap-2">
-              Editor Visual de Plantillas Overlay
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base font-bold text-[#F0F4F8]">
+                Editor Visual de Plantillas Overlay
+              </h1>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#1A222B] text-[#00E676] border border-[#2C3947]">
                 {template.resolution.width}x{template.resolution.height}
               </span>
-            </h1>
-            <p className="text-xs text-[#8B9CB0]">
-              Arrastra y redimensiona los widgets directamente en el lienzo para componer el panel de instrumentos a tu medida.
-            </p>
+            </div>
+            {/* Input para editar el nombre de la plantilla directamente */}
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-xs font-mono text-[#8B9CB0]">Nombre:</span>
+              <input
+                type="text"
+                value={template.name}
+                onChange={(e) => setTemplate((prev) => ({ ...prev, name: e.target.value }))}
+                className="bg-[#090C0E] border border-[#2C3947] focus:border-[#00E676] rounded px-2.5 py-1 text-xs font-bold text-[#F0F4F8] outline-none w-56 sm:w-72 transition-colors placeholder-[#4A5568]"
+                placeholder="Nombre de la plantilla..."
+              />
+            </div>
           </div>
         </div>
 
         {/* Acciones principales */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {saveMessage && (
             <span className="text-xs text-[#00E676] font-semibold mr-2 animate-fadeIn">
               {saveMessage}
@@ -872,14 +960,25 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
           <button
             onClick={handleExportJson}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-all cursor-pointer"
+            title="Exportar plantilla a archivo JSON"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Exportar</span>
           </button>
 
           <button
+            onClick={handleSaveAsNewTemplate}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1A222B] hover:bg-[#2C3947] text-[#00E5FF] border border-[#00E5FF]/40 transition-all cursor-pointer shadow-sm"
+            title="Crear y guardar una nueva plantilla en Mis Plantillas con este diseño y nombre"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>+ Guardar como Nueva</span>
+          </button>
+
+          <button
             onClick={handleSaveTemplate}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-[#00E676] hover:bg-[#00c864] text-[#090C0E] transition-all cursor-pointer shadow-[0_0_12px_rgba(0,230,118,0.2)]"
+            title="Guardar cambios de la plantilla en Mis Plantillas y aplicarla al reproductor"
           >
             <Save className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>Guardar Plantilla</span>
@@ -972,28 +1071,112 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
             })}
           </div>
 
+          {/* Mis Plantillas Personalizadas */}
+          <div className="pt-3 border-t border-[#2C3947] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono text-[#00E676] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <span>Mis Plantillas</span>
+                <span className="bg-[#1A222B] text-[#00E676] border border-[#2C3947] rounded-full px-1.5 py-0.2 text-[10px]">
+                  {customTemplates.length}
+                </span>
+              </span>
+              <button
+                onClick={handleSaveAsNewTemplate}
+                className="text-[10px] font-mono text-[#8B9CB0] hover:text-[#00E676] flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1A222B] border border-[#2C3947] hover:border-[#00E676]/50 transition-colors cursor-pointer"
+                title="Crear nueva plantilla a partir del diseño actual"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Nueva</span>
+              </button>
+            </div>
+
+            {customTemplates.length === 0 ? (
+              <div className="p-2.5 rounded-lg border border-dashed border-[#2C3947] bg-[#090C0E]/40 text-center">
+                <p className="text-[11px] text-[#8B9CB0]">Aún no has guardado ninguna plantilla propia.</p>
+                <p className="text-[10px] text-[#8B9CB0]/70 mt-1">
+                  Ponle un nombre y pulsa <strong className="text-[#00E676]">"Guardar Plantilla"</strong> para crearla.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-0.5">
+                {customTemplates.map((ct) => {
+                  const isActive = template.id === ct.id;
+                  return (
+                    <div
+                      key={ct.id}
+                      onClick={() => {
+                        setTemplate(ct);
+                        setSelectedWidgetId(ct.widgets[0]?.id || null);
+                        saveTemplateToStorage(ct);
+                        onTemplateUpdated?.(ct);
+                        setSaveMessage(`¡Plantilla "${ct.name}" cargada y aplicada!`);
+                        setTimeout(() => setSaveMessage(null), 3000);
+                      }}
+                      className={`px-2.5 py-1.5 rounded text-left text-xs font-mono border transition-all flex items-center justify-between gap-1.5 group cursor-pointer ${
+                        isActive
+                          ? 'bg-[#1A222B] text-[#00E676] border-[#00E676]/70 shadow-[0_0_8px_rgba(0,230,118,0.15)] font-bold'
+                          : 'bg-[#090C0E]/70 hover:bg-[#1A222B] text-[#F0F4F8] border-[#2C3947]'
+                      }`}
+                    >
+                      <div className="truncate flex-1">
+                        <span className="truncate block">{ct.name}</span>
+                        <span className="text-[10px] text-[#8B9CB0] block font-normal">
+                          {ct.resolution.width}x{ct.resolution.height} · {ct.widgets.length} widgets
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100">
+                        <button
+                          onClick={(e) => handleDuplicateCustomTemplate(ct, e)}
+                          className="p-1 text-[#8B9CB0] hover:text-[#00E5FF] transition-colors rounded hover:bg-[#2C3947]"
+                          title={`Duplicar plantilla "${ct.name}"`}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteCustomTemplate(ct.id, e)}
+                          className="p-1 text-[#8B9CB0] hover:text-[#FF5252] transition-colors rounded hover:bg-[#2C3947]"
+                          title={`Eliminar plantilla "${ct.name}"`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Plantillas integradas rápidas */}
           <div className="pt-3 border-t border-[#2C3947] space-y-2">
             <span className="text-[11px] font-mono text-[#8B9CB0] uppercase">Plantillas Integradas:</span>
-            <div className="flex flex-col gap-1.5">
-              {BUILTIN_TEMPLATES.map((bt) => (
-                <button
-                  key={bt.id}
-                  onClick={() => {
-                    setTemplate(bt);
-                    setSelectedWidgetId(bt.widgets[0]?.id || null);
-                    saveTemplateToStorage(bt);
-                    onTemplateUpdated?.(bt);
-                    setSaveMessage(`¡Plantilla "${bt.name}" activada y aplicada al reproductor!`);
-                    setTimeout(() => setSaveMessage(null), 3000);
-                  }}
-                  title={`${bt.name} - ${bt.description}`}
-                  className="px-2.5 py-1.5 rounded text-left text-xs font-mono bg-[#1A222B] hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border border-[#2C3947] transition-colors flex items-center justify-between gap-1.5 group cursor-pointer"
-                >
-                  <span className="truncate group-hover:text-[#F0F4F8]">{bt.name}</span>
-                  <Sparkles className="w-3 h-3 text-[#FFB300] shrink-0" />
-                </button>
-              ))}
+            <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-0.5">
+              {BUILTIN_TEMPLATES.map((bt) => {
+                const isActive = template.id === bt.id;
+                return (
+                  <button
+                    key={bt.id}
+                    onClick={() => {
+                      setTemplate(bt);
+                      setSelectedWidgetId(bt.widgets[0]?.id || null);
+                      saveTemplateToStorage(bt);
+                      onTemplateUpdated?.(bt);
+                      setSaveMessage(`¡Plantilla "${bt.name}" activada y aplicada al reproductor!`);
+                      setTimeout(() => setSaveMessage(null), 3000);
+                    }}
+                    title={`${bt.name} - ${bt.description}`}
+                    className={`px-2.5 py-1.5 rounded text-left text-xs font-mono border transition-colors flex items-center justify-between gap-1.5 group cursor-pointer ${
+                      isActive
+                        ? 'bg-[#1A222B] text-[#00E676] border-[#00E676]/70 font-bold'
+                        : 'bg-[#1A222B]/70 hover:bg-[#2C3947] text-[#8B9CB0] hover:text-[#F0F4F8] border-[#2C3947]'
+                    }`}
+                  >
+                    <span className="truncate group-hover:text-[#F0F4F8]">{bt.name}</span>
+                    <Sparkles className="w-3 h-3 text-[#FFB300] shrink-0" />
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

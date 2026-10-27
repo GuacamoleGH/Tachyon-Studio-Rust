@@ -20,7 +20,11 @@ src-tauri/target/
 *.mov
 *.avi
 *.webm
-!samples/**
+!samples/sesion_sintetica_prueba.zip
+
+# Datos reales de usuario y grabaciones personales (nunca versionar)
+samples/real/
+*.zip.local
 
 # Logs y SO
 .DS_Store

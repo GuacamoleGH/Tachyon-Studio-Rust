@@ -6,8 +6,30 @@ export class MapTileManager {
   private static failedUrls: Set<string> = new Set();
   private static maxCacheSize: number = 300;
 
-  // Clave API de CartoDB (5.000.000 peticiones/mes gratuitas)
-  public static cartoApiKey: string = 'cb1_4v3w_1_cc302707f12f6e47376ae5f1';
+  // Clave API de CartoDB (leída desde variable de entorno VITE_CARTO_API_KEY o ajuste local no versionado)
+  public static cartoApiKey: string =
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_CARTO_API_KEY) ||
+    (typeof localStorage !== 'undefined' && localStorage.getItem('tachyon_carto_api_key')) ||
+    '';
+
+  private static warnedMissingCartoKey: boolean = false;
+
+  /**
+   * Permite configurar o actualizar la clave de API de CartoDB en tiempo de ejecución.
+   */
+  public static setCartoApiKey(key: string): void {
+    this.cartoApiKey = key.trim();
+    if (typeof localStorage !== 'undefined') {
+      if (this.cartoApiKey) {
+        localStorage.setItem('tachyon_carto_api_key', this.cartoApiKey);
+      } else {
+        localStorage.removeItem('tachyon_carto_api_key');
+      }
+    }
+    this.cache.clear();
+    this.failedUrls.clear();
+    this.notifyListeners();
+  }
 
   /**
    * Suscribe un callback que se invocará cuando cualquier tesela termine de cargarse.
@@ -38,6 +60,17 @@ export class MapTileManager {
     const n = 1 << z;
     const normX = ((x % n) + n) % n;
     if (y < 0 || y >= n) return null;
+
+    if (provider.startsWith('carto_') && !this.cartoApiKey) {
+      if (!this.warnedMissingCartoKey) {
+        console.warn(
+          'MapTileManager: Se ha seleccionado CartoDB pero no hay clave API configurada (VITE_CARTO_API_KEY). ' +
+          'El mapa utilizará OpenStreetMap como proveedor alternativo gratuito.'
+        );
+        this.warnedMissingCartoKey = true;
+      }
+      return `https://tile.openstreetmap.org/${z}/${normX}/${y}.png`;
+    }
 
     const keyParam = this.cartoApiKey ? `?key=${this.cartoApiKey}` : '';
 

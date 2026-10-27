@@ -247,6 +247,7 @@ export class TimeEngine {
   /**
    * Calcula la aceleración longitudinal a partir de la tasa de cambio de la velocidad GPS.
    * a = (v(t + dt) - v(t - dt)) / (2 * dt * 9.80665 m/s^2)
+   * Adaptado dinámicamente para frecuencias de muestreo GPS de alta velocidad (hasta 10 Hz / 100 ms) y estándar (1 Hz).
    */
   private calculateDerivedGpsAccel(
     t: number,
@@ -257,7 +258,20 @@ export class TimeEngine {
     const speedTimeline = this.timelines.get('gps_speed_kmh');
     if (!speedTimeline) return { val: null, isAvailable: false };
 
-    const dt = 0.2; // Ventana de diferenciación de 200 ms
+    // Detectar el intervalo local de muestreo para ajustar la ventana dv/dt (ej. 100 ms para 10 Hz)
+    const centerSample = speedTimeline.query(t);
+    let dt = 0.12; // Ventana por defecto equilibrada (240 ms total)
+    if (centerSample.timeBefore !== undefined && centerSample.timeAfter !== undefined) {
+      const localInterval = Math.abs(centerSample.timeAfter - centerSample.timeBefore);
+      if (localInterval > 0 && localInterval <= 0.15) {
+        // Modo 10 Hz de alta frecuencia: ventana de diferenciación rápida de 80-100 ms
+        dt = Math.max(0.06, Math.min(0.12, localInterval));
+      } else if (localInterval > 0.4) {
+        // Modo 1 Hz estándar: ventana de 250 ms
+        dt = 0.25;
+      }
+    }
+
     const s1 = speedTimeline.query(t - dt);
     const s2 = speedTimeline.query(t + dt);
 

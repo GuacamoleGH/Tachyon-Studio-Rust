@@ -90,8 +90,8 @@ export class MapWidget implements BaseWidget {
       for (let i = 0; i < allPoints.length; i++) {
         const p = allPoints[i];
         if (p.latitude != null && p.longitude != null) {
-          // Filtrar puntos repetidos idénticos para reducir la carga de dibujo
-          if (Math.abs(p.latitude - lastLat) > 0.000005 || Math.abs(p.longitude - lastLon) > 0.000005) {
+          // Filtrar puntos repetidos idénticos para reducir la carga de dibujo (umbral de 0.08m ~ 0.0000007° para capturar muestras de 10 Hz)
+          if (Math.abs(p.latitude - lastLat) > 0.0000007 || Math.abs(p.longitude - lastLon) > 0.0000007) {
             validPoints.push({ lat: p.latitude, lon: p.longitude });
             lastLat = p.latitude;
             lastLon = p.longitude;
@@ -128,7 +128,8 @@ export class MapWidget implements BaseWidget {
           this.smoothLon = rawLon;
           this.smoothHeading = rawHeading;
         } else {
-          const alphaPos = 0.22;
+          // Factor de interpolación suave (0.30 proporciona respuesta inmediata a 10 Hz sin retardo en curvas y 60fps sedosos)
+          const alphaPos = 0.30;
           this.smoothLat = this.smoothLat + (rawLat - this.smoothLat) * alphaPos;
           this.smoothLon = this.smoothLon + (rawLon - this.smoothLon) * alphaPos;
 
@@ -136,7 +137,7 @@ export class MapWidget implements BaseWidget {
             let diff = (rawHeading - this.smoothHeading) % 360;
             if (diff > 180) diff -= 360;
             if (diff < -180) diff += 360;
-            const alphaHeading = 0.18;
+            const alphaHeading = 0.22;
             this.smoothHeading = (this.smoothHeading + diff * alphaHeading + 360) % 360;
           } else {
             this.smoothHeading = rawHeading;
@@ -227,8 +228,8 @@ export class MapWidget implements BaseWidget {
       // Límite de distancia en metros para descartar puntos lejanos fuera de pantalla
       const maxDistM = this.zoomMeters * 2.2;
 
-      // Paso de muestreo adaptativo si la sesión tiene miles de puntos
-      const stride = gpsPoints.length > 3000 ? Math.ceil(gpsPoints.length / 3000) : 1;
+      // Paso de muestreo adaptativo si la sesión tiene una cantidad masiva de puntos (> 25.000 para preservar 10 Hz íntegro)
+      const stride = gpsPoints.length > 25000 ? Math.ceil(gpsPoints.length / 25000) : 1;
 
       ctx.beginPath();
       let isDrawing = false;
@@ -455,8 +456,8 @@ export class MapWidget implements BaseWidget {
         this.smoothLat = rawLat;
         this.smoothLon = rawLon;
       } else {
-        this.smoothLat = this.smoothLat + (rawLat - this.smoothLat) * 0.22;
-        this.smoothLon = this.smoothLon + (rawLon - this.smoothLon) * 0.22;
+        this.smoothLat = this.smoothLat + (rawLat - this.smoothLat) * 0.30;
+        this.smoothLon = this.smoothLon + (rawLon - this.smoothLon) * 0.30;
       }
 
       const { px, py } = project(this.smoothLat, this.smoothLon);

@@ -18,6 +18,11 @@ import { CompassWidget } from '../widgets/CompassWidget';
 import { MaxStatsWidget } from '../widgets/MaxStatsWidget';
 import { TachometerHorizontalWidget } from '../widgets/TachometerHorizontalWidget';
 import { GpsCoordsWidget } from '../widgets/GpsCoordsWidget';
+import { BoostWidget } from '../widgets/BoostWidget';
+import { FuelConsumptionWidget } from '../widgets/FuelConsumptionWidget';
+import { IntakeTempWidget } from '../widgets/IntakeTempWidget';
+import { RawAccelWidget } from '../widgets/RawAccelWidget';
+import { GpsAccuracyWidget } from '../widgets/GpsAccuracyWidget';
 import { VehicleProfile } from '../../core/profile/vehicleProfile';
 import { TelemetrySnapshot } from '../../core/telemetry/timeEngine';
 import { TelemetryPoint } from '../../core/model/telemetry';
@@ -320,6 +325,21 @@ export class OverlayRenderer {
         break;
       case 'gps_coords':
         widget = new GpsCoordsWidget({ ...config.bounds });
+        break;
+      case 'boost':
+        widget = new BoostWidget({ ...config.bounds });
+        break;
+      case 'fuel_consumption':
+        widget = new FuelConsumptionWidget({ ...config.bounds });
+        break;
+      case 'intake_temp':
+        widget = new IntakeTempWidget({ ...config.bounds });
+        break;
+      case 'imu_raw':
+        widget = new RawAccelWidget({ ...config.bounds });
+        break;
+      case 'gps_accuracy':
+        widget = new GpsAccuracyWidget({ ...config.bounds });
         break;
       default:
         widget = new TachometerCircularWidget({ ...config.bounds });

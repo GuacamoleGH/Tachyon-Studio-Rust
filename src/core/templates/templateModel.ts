@@ -502,7 +502,92 @@ export const TEMPLATE_CLEAN_CORNER: OverlayTemplate = {
   ],
 };
 
+export const TEMPLATE_TURBO_TELEMETRY: OverlayTemplate = {
+  schema_version: '1.0.0',
+  id: 'template_turbo_telemetry',
+  name: '⚡ Turbo & Diagnosis OBD-II Pro',
+  description: 'Cuadro completo de telemetría y motor con presión de turbo (Boost), consumo, IAT, refrigerante y dinámicas.',
+  resolution: { width: 1280, height: 720 },
+  unit_system: 'metric',
+  opacity: 1.0,
+  show_timer: false,
+  widgets: [
+    {
+      id: 'shift_lights',
+      type: 'shift_lights',
+      name: 'Shift Lights Pro',
+      bounds: { x: 440, y: 20, width: 400, height: 42 },
+      visible: true,
+    },
+    {
+      id: 'coolant_temp',
+      type: 'coolant_temp',
+      name: 'Temp. Refrigerante',
+      bounds: { x: 25, y: 20, width: 135, height: 60 },
+      visible: true,
+    },
+    {
+      id: 'intake_temp',
+      type: 'intake_temp',
+      name: 'Temp. Admisión (IAT)',
+      bounds: { x: 170, y: 20, width: 135, height: 60 },
+      visible: true,
+    },
+    {
+      id: 'boost',
+      type: 'boost',
+      name: 'Presión Turbo (Boost)',
+      bounds: { x: 25, y: 90, width: 135, height: 62 },
+      visible: true,
+    },
+    {
+      id: 'fuel_consumption',
+      type: 'fuel_consumption',
+      name: 'Consumo L/100km',
+      bounds: { x: 170, y: 90, width: 135, height: 62 },
+      visible: true,
+    },
+    {
+      id: 'tachometer_forza',
+      type: 'tachometer_forza',
+      name: 'Tacómetro Racing Forza',
+      bounds: { x: 30, y: 440, width: 285, height: 250 },
+      visible: true,
+    },
+    {
+      id: 'g_force_bars',
+      type: 'g_force_bars',
+      name: 'Fuerzas G',
+      bounds: { x: 550, y: 600, width: 180, height: 90 },
+      visible: true,
+    },
+    {
+      id: 'map',
+      type: 'map',
+      name: 'Trazada GPS con Mapa',
+      bounds: { x: 1060, y: 20, width: 195, height: 145 },
+      visible: true,
+      properties: { mode: 'chase_north', zoomMeters: 100, mapBackground: 'carto_voyager' },
+    },
+    {
+      id: 'gps_accuracy',
+      type: 'gps_accuracy',
+      name: 'Precisión Satelital',
+      bounds: { x: 1060, y: 175, width: 140, height: 50 },
+      visible: true,
+    },
+    {
+      id: 'session_timer',
+      type: 'session_timer',
+      name: 'Cronómetro',
+      bounds: { x: 890, y: 20, width: 155, height: 42 },
+      visible: true,
+    },
+  ],
+};
+
 export const BUILTIN_TEMPLATES: OverlayTemplate[] = [
+  TEMPLATE_TURBO_TELEMETRY,
   TEMPLATE_FORZA_HUD,
   TEMPLATE_F1_GT3,
   TEMPLATE_WRC_RALLY,

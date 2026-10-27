@@ -43,6 +43,10 @@ export const SIGNAL_ALIASES: Record<StandardSignalKey, string[]> = {
   obd_speed_kmh: ['obd_speed_kmh', 'obd_speed', 'vehicle_speed', 'speed_obd'],
   throttle_pct: ['throttle_pct', 'throttle', 'tps', 'pedal_pct', 'pedal', 'accel_pedal_pct'],
   coolant_temp_c: ['coolant_temp_c', 'coolant_c', 'coolant', 'water_temp_c', 'ect'],
+  gear: ['gear', 'current_gear', 'gear_num', 'transmission_gear', 'selected_gear'],
+  boost_bar: ['boost_bar', 'boost', 'turbo_bar', 'turbo', 'boost_psi', 'map_kpa', 'pressure_bar', 'manifold_boost'],
+  fuel_l100km: ['fuel_l100km', 'fuel_consumption', 'consumption', 'fuel_rate_l100km', 'l100km', 'l_100km', 'fuel_econ'],
+  intake_temp_c: ['intake_temp_c', 'intake_temp', 'iat', 'iat_c', 'intake_air_temp', 'intake_c', 'air_temp_c'],
   accel_x: ['accel_x', 'accel_x_raw', 'raw_accel_x'],
   accel_y: ['accel_y', 'accel_y_raw', 'raw_accel_y'],
   accel_z: ['accel_z', 'accel_z_raw', 'raw_accel_z'],
@@ -104,6 +108,8 @@ export function detectColumnMapping(headers: string[]): ColumnMappingConfig {
         (normMatched.includes('_ms2') || normMatched.endsWith('ms2'))
       ) {
         unitConversions[sigKey] = (ms2: number) => ms2 / 9.80665;
+      } else if (sigKey === 'boost_bar' && normMatched.includes('psi')) {
+        unitConversions[sigKey] = (psi: number) => psi * 0.0689476;
       }
     }
   }

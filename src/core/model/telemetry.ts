@@ -18,6 +18,10 @@ export type StandardSignalKey =
   | 'obd_speed_kmh'
   | 'throttle_pct'
   | 'coolant_temp_c'
+  | 'gear'
+  | 'boost_bar'
+  | 'fuel_l100km'
+  | 'intake_temp_c'
   | 'accel_x'
   | 'accel_y'
   | 'accel_z';
@@ -168,6 +172,40 @@ export const STANDARD_SIGNALS: Record<StandardSignalKey, SignalDefinition> = {
     description: 'Temperatura del refrigerante OBD-II (PID 0105)',
     defaultMaxGapSec: 5.0,
   },
+  gear: {
+    key: 'gear',
+    label: 'Marcha Engranada',
+    unit: '',
+    category: 'OBD',
+    description: 'Marcha de la transmisión (1-8, N, R) calculada o informada por ECU (PID 01A4)',
+    defaultMaxGapSec: 2.0,
+    isPrimaryForUI: true,
+  },
+  boost_bar: {
+    key: 'boost_bar',
+    label: 'Presión Turbo / Boost',
+    unit: 'bar',
+    category: 'OBD',
+    description: 'Presión positiva del turbo respecto a la presión barométrica (MAP - BARO)',
+    defaultMaxGapSec: 1.5,
+    isPrimaryForUI: true,
+  },
+  fuel_l100km: {
+    key: 'fuel_l100km',
+    label: 'Consumo Instantáneo',
+    unit: 'L/100km',
+    category: 'OBD',
+    description: 'Consumo volumétrico de combustible (vía MAF o PID 015E)',
+    defaultMaxGapSec: 2.5,
+  },
+  intake_temp_c: {
+    key: 'intake_temp_c',
+    label: 'Temp. Aire Admisión (IAT)',
+    unit: '°C',
+    category: 'OBD',
+    description: 'Temperatura del aire en el colector de admisión tras intercooler (PID 010F)',
+    defaultMaxGapSec: 5.0,
+  },
   accel_x: {
     key: 'accel_x',
     label: 'Acel. Bruta X',
@@ -215,6 +253,11 @@ export interface TelemetryPoint {
   obd_speed_kmh?: number | null;
   throttle_pct?: number | null;
   coolant_temp_c?: number | null;
+  gear?: string | number | null;
+  boost_bar?: number | null;
+  fuel_l100km?: number | null;
+  intake_temp_c?: number | null;
+  iso_time?: string | null;
   accel_x?: number | null;
   accel_y?: number | null;
   accel_z?: number | null;

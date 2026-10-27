@@ -16,6 +16,11 @@ import { CompassWidget } from '../src/engine/widgets/CompassWidget';
 import { MaxStatsWidget } from '../src/engine/widgets/MaxStatsWidget';
 import { TachometerHorizontalWidget } from '../src/engine/widgets/TachometerHorizontalWidget';
 import { GpsCoordsWidget } from '../src/engine/widgets/GpsCoordsWidget';
+import { BoostWidget } from '../src/engine/widgets/BoostWidget';
+import { FuelConsumptionWidget } from '../src/engine/widgets/FuelConsumptionWidget';
+import { IntakeTempWidget } from '../src/engine/widgets/IntakeTempWidget';
+import { RawAccelWidget } from '../src/engine/widgets/RawAccelWidget';
+import { GpsAccuracyWidget } from '../src/engine/widgets/GpsAccuracyWidget';
 import { PRESET_GASOLINA_ESTANDAR } from '../src/core/profile/vehicleProfile';
 import { TelemetrySnapshot } from '../src/core/telemetry/timeEngine';
 import { STANDARD_SIGNALS, StandardSignalKey } from '../src/core/model/telemetry';
@@ -87,6 +92,24 @@ function createSnapshot(rpm: number | null, speed: number | null, latG: number |
     gpsAvailable: true,
     bearingDeg: 90,
     bearingAvailable: true,
+    altitudeM: 655,
+    altitudeAvailable: true,
+    accuracyM: 1.8,
+    accuracyAvailable: true,
+    gear: '3',
+    gearAvailable: true,
+    boostBar: 0.85,
+    boostAvailable: true,
+    fuelL100km: 11.2,
+    fuelAvailable: true,
+    intakeTempC: 34,
+    intakeTempAvailable: true,
+    coolantTempC: 92,
+    coolantTempAvailable: true,
+    accelX: 0.12,
+    accelY: 8.25,
+    accelZ: -1.14,
+    accelAvailable: true,
   };
 }
 
@@ -383,5 +406,25 @@ describe('Base Widgets Render Tests', () => {
 
     mapOsm.mapBackground = 'carto_voyager';
     expect(() => mapOsm.render({ ...context, allPoints: [{ latitude: 40.41, longitude: -3.70 }] as any })).not.toThrow();
+
+    // Nuevos widgets de telemetría completa y motor OBD-II
+    const boostWidget = new BoostWidget();
+    expect(() => boostWidget.render(context)).not.toThrow();
+    expect(() => boostWidget.render({ ...context, unitSystem: 'imperial' })).not.toThrow();
+
+    const fuelWidget = new FuelConsumptionWidget();
+    expect(() => fuelWidget.render(context)).not.toThrow();
+    expect(() => fuelWidget.render({ ...context, unitSystem: 'imperial' })).not.toThrow();
+
+    const iatWidget = new IntakeTempWidget();
+    expect(() => iatWidget.render(context)).not.toThrow();
+    expect(() => iatWidget.render({ ...context, unitSystem: 'imperial' })).not.toThrow();
+
+    const imuWidget = new RawAccelWidget();
+    expect(() => imuWidget.render(context)).not.toThrow();
+
+    const gpsAccWidget = new GpsAccuracyWidget();
+    expect(() => gpsAccWidget.render(context)).not.toThrow();
+    expect(() => gpsAccWidget.render({ ...context, unitSystem: 'imperial' })).not.toThrow();
   });
 });

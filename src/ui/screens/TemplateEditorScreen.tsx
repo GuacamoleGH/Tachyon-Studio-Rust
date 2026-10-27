@@ -239,6 +239,63 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
             category: 'OBD',
             label: 'Temp. Refrigerante',
           },
+          boost_bar: {
+            key: 'boost_bar',
+            value: 0.85,
+            isAvailable: true,
+            status: 'VALID',
+            unit: 'bar',
+            category: 'OBD',
+            label: 'Presión Turbo',
+          },
+          fuel_l100km: {
+            key: 'fuel_l100km',
+            value: 11.4,
+            isAvailable: true,
+            status: 'VALID',
+            unit: 'L/100km',
+            category: 'OBD',
+            label: 'Consumo Combustible',
+          },
+          intake_temp_c: {
+            key: 'intake_temp_c',
+            value: 34,
+            isAvailable: true,
+            status: 'VALID',
+            unit: '°C',
+            category: 'OBD',
+            label: 'Temp. Aire Admisión',
+          },
+          altitude_m: {
+            key: 'altitude_m',
+            value: 655,
+            isAvailable: true,
+            status: 'VALID',
+            unit: 'm',
+            category: 'GPS',
+            label: 'Altitud',
+          },
+          accuracy_m: {
+            key: 'accuracy_m',
+            value: 1.8,
+            isAvailable: true,
+            status: 'VALID',
+            unit: 'm',
+            category: 'GPS',
+            label: 'Precisión GPS',
+          },
+          gear: {
+            key: 'gear',
+            value: 3,
+            isAvailable: true,
+            status: 'VALID',
+            unit: '',
+            category: 'OBD',
+            label: 'Marcha',
+          },
+          accel_x: { key: 'accel_x', value: 0.12, isAvailable: true, status: 'VALID', unit: 'm/s²', category: 'IMU', label: 'Acel. X' },
+          accel_y: { key: 'accel_y', value: 8.25, isAvailable: true, status: 'VALID', unit: 'm/s²', category: 'IMU', label: 'Acel. Y' },
+          accel_z: { key: 'accel_z', value: -1.14, isAvailable: true, status: 'VALID', unit: 'm/s²', category: 'IMU', label: 'Acel. Z' },
         } as any,
         activeEvents: [],
         speedKmh: 125.4,
@@ -258,6 +315,24 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
         gpsAvailable: false,
         bearingDeg: 0,
         bearingAvailable: false,
+        gear: '3',
+        gearAvailable: true,
+        boostBar: 0.85,
+        boostAvailable: true,
+        fuelL100km: 11.4,
+        fuelAvailable: true,
+        intakeTempC: 34,
+        intakeTempAvailable: true,
+        coolantTempC: 92,
+        coolantTempAvailable: true,
+        altitudeM: 655,
+        altitudeAvailable: true,
+        accuracyM: 1.8,
+        accuracyAvailable: true,
+        accelX: 0.12,
+        accelY: 8.25,
+        accelZ: -1.14,
+        accelAvailable: true,
       };
 
       // Trazada simulada para el minimapa cuando no hay sesión cargada
@@ -651,6 +726,21 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     } else if (type === 'gps_coords') {
       name = 'Coordenadas GPS (WGS84)';
       bounds = { x: 100, y: 150, width: 190, height: 80 };
+    } else if (type === 'boost') {
+      name = 'Presión de Turbo (Boost)';
+      bounds = { x: 100, y: 220, width: 140, height: 75 };
+    } else if (type === 'fuel_consumption') {
+      name = 'Consumo de Combustible (L/100km)';
+      bounds = { x: 100, y: 305, width: 140, height: 75 };
+    } else if (type === 'intake_temp') {
+      name = 'Temp. Aire Admisión (IAT)';
+      bounds = { x: 100, y: 390, width: 140, height: 75 };
+    } else if (type === 'imu_raw') {
+      name = 'Aceleración Bruta IMU 3D';
+      bounds = { x: 300, y: 350, width: 170, height: 95 };
+    } else if (type === 'gps_accuracy') {
+      name = 'Precisión Satelital (GNSS / GPS)';
+      bounds = { x: 1065, y: 165, width: 140, height: 60 };
     }
 
     // Escalar bounds si la resolución actual no es 720p
@@ -842,6 +932,11 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
               <option value="compass">Brújula / Rumbo GPS</option>
               <option value="max_stats">Récords de Sesión (Max Stats)</option>
               <option value="gps_coords">Coordenadas GPS (WGS84)</option>
+              <option value="boost">Presión de Turbo (Boost)</option>
+              <option value="fuel_consumption">Consumo de Combustible (L/100km)</option>
+              <option value="intake_temp">Temp. Aire Admisión (IAT)</option>
+              <option value="imu_raw">Aceleración Bruta IMU 3D (X, Y, Z)</option>
+              <option value="gps_accuracy">Precisión Satelital (GNSS / GPS)</option>
             </select>
           </div>
 

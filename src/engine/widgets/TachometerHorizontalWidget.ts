@@ -34,10 +34,14 @@ export class TachometerHorizontalWidget implements BaseWidget {
     const isShiftPoint = rpm >= shiftRpm;
     const isFlashActive = isShiftPoint && Math.floor(timeSec * 8) % 2 === 0;
 
-    // Estimación o cálculo de marcha
+    // Marcha directa OBD o estimación
     let gearText = 'N';
     let gearColor: string = CockpitColors.neonGreen;
-    if (speedKmh < 2.5) {
+    const directGear = snapshot.gear ?? null;
+    if (snapshot.gearAvailable && directGear !== null) {
+      gearText = directGear;
+      gearColor = isShiftPoint ? CockpitColors.neonRed : (gearText === 'N' ? CockpitColors.neonAmber : CockpitColors.neonGreen);
+    } else if (speedKmh < 2.5) {
       gearText = rpm > 400 ? 'N' : '-';
       gearColor = CockpitColors.neonAmber;
     } else {

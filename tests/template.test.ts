@@ -66,7 +66,7 @@ describe('Overlay Template Model & Serialization', () => {
 
   it('valida que todas las plantillas integradas se aplican sin errores y tienen widgets bien formados', () => {
     const renderer = new OverlayRenderer(1280, 720);
-    expect(BUILTIN_TEMPLATES.length).toBe(8);
+    expect(BUILTIN_TEMPLATES.length).toBe(9);
 
     for (const t of BUILTIN_TEMPLATES) {
       expect(() => renderer.applyTemplate(t)).not.toThrow();

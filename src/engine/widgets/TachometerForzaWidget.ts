@@ -37,10 +37,13 @@ export class TachometerForzaWidget implements BaseWidget {
     const displaySpeed = rawSpeed !== null ? (isImperial ? rawSpeed * 0.621371 : rawSpeed) : null;
     const unitLabel = isImperial ? 'MPH' : 'KM/H';
 
-    // Estimación de marcha para el centro
+    // Marcha para el centro (usar marcha directa OBD o estimación)
     let gearStr = '-';
     const isRedline = isRpmAvailable && rawRpm! >= redlineStart;
-    if (isRpmAvailable && rawSpeed !== null) {
+    const directGear = snapshot.gear ?? null;
+    if (snapshot.gearAvailable && directGear !== null) {
+      gearStr = directGear;
+    } else if (isRpmAvailable && rawSpeed !== null) {
       if (rawSpeed < 2.5) {
         gearStr = rawRpm! > 400 ? 'N' : '0';
       } else {

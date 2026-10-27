@@ -39,6 +39,28 @@ export interface TelemetrySnapshot {
   gpsAvailable: boolean;
   bearingDeg: number | null;
   bearingAvailable: boolean;
+  altitudeM?: number | null;
+  altitudeAvailable?: boolean;
+  accuracyM?: number | null;
+  accuracyAvailable?: boolean;
+
+  // Motor y Diagnosis OBD-II
+  gear?: string | null;
+  gearAvailable?: boolean;
+  boostBar?: number | null;
+  boostAvailable?: boolean;
+  fuelL100km?: number | null;
+  fuelAvailable?: boolean;
+  intakeTempC?: number | null;
+  intakeTempAvailable?: boolean;
+  coolantTempC?: number | null;
+  coolantTempAvailable?: boolean;
+
+  // Acelerómetros brutos 3D (Smartphone)
+  accelX?: number | null;
+  accelY?: number | null;
+  accelZ?: number | null;
+  accelAvailable?: boolean;
 }
 
 export interface TimeEngineOptions {
@@ -152,6 +174,18 @@ export class TimeEngine {
       ? signals['gps_speed_kmh']
       : signals['obd_speed_kmh'];
 
+    let gearDisplay: string | null = null;
+    const gearVal = signals['gear']?.value;
+    if (signals['gear']?.isAvailable && gearVal !== null) {
+      const rounded = Math.round(gearVal);
+      if (rounded === -1) gearDisplay = 'R';
+      else if (rounded === 0) gearDisplay = 'N';
+      else gearDisplay = String(rounded);
+    }
+
+    const accelAvail =
+      (signals['accel_x']?.isAvailable && signals['accel_y']?.isAvailable) ?? false;
+
     return {
       timeSec: t,
       signals,
@@ -181,6 +215,32 @@ export class TimeEngine {
 
       bearingDeg: signals['bearing_deg']?.value ?? null,
       bearingAvailable: signals['bearing_deg']?.isAvailable ?? false,
+
+      altitudeM: signals['altitude_m']?.value ?? null,
+      altitudeAvailable: signals['altitude_m']?.isAvailable ?? false,
+
+      accuracyM: signals['accuracy_m']?.value ?? null,
+      accuracyAvailable: signals['accuracy_m']?.isAvailable ?? false,
+
+      gear: gearDisplay,
+      gearAvailable: signals['gear']?.isAvailable ?? false,
+
+      boostBar: signals['boost_bar']?.value ?? null,
+      boostAvailable: signals['boost_bar']?.isAvailable ?? false,
+
+      fuelL100km: signals['fuel_l100km']?.value ?? null,
+      fuelAvailable: signals['fuel_l100km']?.isAvailable ?? false,
+
+      intakeTempC: signals['intake_temp_c']?.value ?? null,
+      intakeTempAvailable: signals['intake_temp_c']?.isAvailable ?? false,
+
+      coolantTempC: signals['coolant_temp_c']?.value ?? null,
+      coolantTempAvailable: signals['coolant_temp_c']?.isAvailable ?? false,
+
+      accelX: signals['accel_x']?.value ?? null,
+      accelY: signals['accel_y']?.value ?? null,
+      accelZ: signals['accel_z']?.value ?? null,
+      accelAvailable: accelAvail,
     };
   }
 

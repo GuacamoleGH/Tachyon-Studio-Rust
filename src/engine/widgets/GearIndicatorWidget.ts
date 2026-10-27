@@ -31,7 +31,13 @@ export class GearIndicatorWidget implements BaseWidget {
     let gearStr = 'N/D';
     let isRedline = false;
 
-    if (isRpmAvailable && isSpeedAvailable) {
+    const directGear = snapshot.gear ?? null;
+    if (snapshot.gearAvailable && directGear !== null) {
+      gearStr = directGear;
+      if (isRpmAvailable && rpm! >= profile.rpm.redline_start) {
+        isRedline = true;
+      }
+    } else if (isRpmAvailable && isSpeedAvailable) {
       if (rpm! >= profile.rpm.redline_start) {
         isRedline = true;
       }

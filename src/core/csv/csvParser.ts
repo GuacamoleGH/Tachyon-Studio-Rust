@@ -54,9 +54,14 @@ export function parseTelemetryCsv(csvText: string, options?: ParseCsvOptions): P
   const colIndexToConversion: Record<number, (v: number) => number> = {};
   let timeVideoColIndex = -1;
   let sourceColIndex = -1;
+  let isoTimeColIndex = -1;
 
   for (let col = 0; col < rawHeaders.length; col++) {
     const headerName = rawHeaders[col];
+    const norm = headerName.trim().toLowerCase();
+    if (norm === 'iso_time') {
+      isoTimeColIndex = col;
+    }
     const signalKey = mappingConfig.headerToSignal[headerName];
     if (signalKey) {
       colIndexToSignal[col] = signalKey;
@@ -118,6 +123,11 @@ export function parseTelemetryCsv(csvText: string, options?: ParseCsvOptions): P
       if (src.length > 0) point.source = src;
     }
 
+    if (isoTimeColIndex !== -1 && isoTimeColIndex < cells.length) {
+      const iso = cells[isoTimeColIndex].trim();
+      if (iso.length > 0) point.iso_time = iso;
+    }
+
     for (let col = 0; col < cells.length; col++) {
       const signalKey = colIndexToSignal[col];
       if (!signalKey || signalKey === 'time_offset_video_sec') continue;
@@ -125,6 +135,31 @@ export function parseTelemetryCsv(csvText: string, options?: ParseCsvOptions): P
       const cellVal = cells[col].trim();
       if (cellVal.length === 0) {
         point[signalKey] = null;
+        if (signalKey === 'gear') point.gear = null;
+      } else if (signalKey === 'gear') {
+        const upper = cellVal.toUpperCase();
+        if (upper === 'R') {
+          point['gear'] = -1;
+          point.gear = 'R';
+        } else if (upper === 'N') {
+          point['gear'] = 0;
+          point.gear = 'N';
+        } else if (upper === 'P') {
+          point['gear'] = 0;
+          point.gear = 'P';
+        } else if (upper === 'D') {
+          point['gear'] = 1;
+          point.gear = 'D';
+        } else {
+          const num = Number(cellVal);
+          if (!isNaN(num)) {
+            point['gear'] = num;
+            point.gear = String(Math.round(num));
+          } else {
+            point['gear'] = null;
+            point.gear = null;
+          }
+        }
       } else {
         const num = Number(cellVal);
         if (!isNaN(num)) {

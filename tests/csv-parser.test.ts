@@ -59,4 +59,44 @@ describe('CSV Parser', () => {
     expect(pObd.engine_rpm).toBe(3500);
     expect(pObd.coolant_temp_c).toBe(88);
   });
+
+  it('parsea con 100% fidelidad el CSV oficial de 24 columnas documentado en DATOS_REGISTRADOS.md', () => {
+    const csvContent = `time_offset_video_sec,time_offset_session_sec,timestamp_utc_ms,iso_time,monotonic_nanos,latitude,longitude,altitude_m,gps_speed_kmh,bearing_deg,accuracy_m,lateral_g,longitudinal_g,engine_rpm,obd_speed_kmh,throttle_pct,coolant_temp_c,gear,boost_bar,fuel_l100km,intake_temp_c,accel_x,accel_y,accel_z
+12.450,12.450,1729864200123,2026-10-27T10:30:00.123Z,154823948572000,40.416775,-3.703790,655.4,124.6,184.2,1.8,0.85,-0.92,5850,123.0,100.0,92,3,0.45,14.2,34,0.12,8.25,-1.14
+13.000,13.000,1729864200673,2026-10-27T10:30:00.673Z,154824500000000,40.416800,-3.703810,655.8,126.0,184.5,1.7,0.88,-0.10,6000,125.0,80.0,93,R,-0.20,9.5,35,0.05,1.20,-0.80
+`;
+
+    const result = parseTelemetryCsv(csvContent);
+    expect(result.totalRows).toBe(2);
+    expect(result.mappingConfig.detectedFormat).toBe('official_wide');
+
+    const p0 = result.points[0];
+    expect(p0.time_offset_video_sec).toBe(12.45);
+    expect(p0.latitude).toBeCloseTo(40.416775);
+    expect(p0.longitude).toBeCloseTo(-3.70379);
+    expect(p0.altitude_m).toBe(655.4);
+    expect(p0.gps_speed_kmh).toBe(124.6);
+    expect(p0.bearing_deg).toBe(184.2);
+    expect(p0.accuracy_m).toBe(1.8);
+    expect(p0.lateral_g).toBe(0.85);
+    expect(p0.longitudinal_g).toBe(-0.92);
+    expect(p0.engine_rpm).toBe(5850);
+    expect(p0.obd_speed_kmh).toBe(123.0);
+    expect(p0.throttle_pct).toBe(100.0);
+    expect(p0.coolant_temp_c).toBe(92);
+    expect(p0.gear).toBe('3');
+    expect(p0.boost_bar).toBe(0.45);
+    expect(p0.fuel_l100km).toBe(14.2);
+    expect(p0.intake_temp_c).toBe(34);
+    expect(p0.accel_x).toBe(0.12);
+    expect(p0.accel_y).toBe(8.25);
+    expect(p0.accel_z).toBe(-1.14);
+    expect(p0.iso_time).toBe('2026-10-27T10:30:00.123Z');
+
+    const p1 = result.points[1];
+    expect(p1.gear).toBe('R');
+    expect(p1.boost_bar).toBe(-0.20);
+    expect(p1.fuel_l100km).toBe(9.5);
+    expect(p1.intake_temp_c).toBe(35);
+  });
 });

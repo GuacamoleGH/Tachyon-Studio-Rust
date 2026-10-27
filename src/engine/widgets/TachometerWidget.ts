@@ -170,7 +170,10 @@ export class TachometerCircularWidget implements BaseWidget {
     // 7. Indicador de marcha integrado en el tacómetro circular (recuadro superior central)
     const speed = snapshot.speedKmh;
     let gearStr = '-';
-    if (isAvailable && snapshot.speedAvailable && speed !== null) {
+    const directGear = snapshot.gear ?? null;
+    if (snapshot.gearAvailable && directGear !== null) {
+      gearStr = directGear;
+    } else if (isAvailable && snapshot.speedAvailable && speed !== null) {
       if (speed < 2.5) {
         gearStr = rawRpm! > 400 ? 'N' : '0';
       } else {

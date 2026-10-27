@@ -37,7 +37,12 @@ export type WidgetType =
   | 'altitude'
   | 'compass'
   | 'max_stats'
-  | 'gps_coords';
+  | 'gps_coords'
+  | 'boost'
+  | 'fuel_consumption'
+  | 'intake_temp'
+  | 'imu_raw'
+  | 'gps_accuracy';
 
 export interface BaseWidget {
   id: string;

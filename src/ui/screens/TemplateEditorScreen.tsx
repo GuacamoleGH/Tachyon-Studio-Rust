@@ -45,6 +45,62 @@ interface TemplateEditorScreenProps {
 
 type DragMode = 'none' | 'move' | 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
+// Categorías organizadas para la adición de widgets en la plantilla
+const WIDGET_CATEGORIES: {
+  category: string;
+  items: { type: WidgetType; label: string }[];
+}[] = [
+  {
+    category: '🏎️ Tacómetros y Régimen (RPM)',
+    items: [
+      { type: 'tachometer_circular', label: 'Tacómetro Circular' },
+      { type: 'tachometer_forza', label: 'Tacómetro Racing (Estilo Forza)' },
+      { type: 'tachometer_bar', label: 'Tacómetro de Barra GT' },
+      { type: 'tachometer_horizontal', label: 'Tacómetro Horizontal F1/GT3' },
+      { type: 'shift_lights', label: 'Shift Lights' },
+    ],
+  },
+  {
+    category: '⚡ Velocidad, Marchas y Pedales',
+    items: [
+      { type: 'speedometer', label: 'Velocímetro Digital' },
+      { type: 'gear_indicator', label: 'Indicador de Marcha (Gear)' },
+      { type: 'throttle', label: 'Pedal Acelerador' },
+      { type: 'brake_throttle', label: 'Pedales Duales (Freno / Gas)' },
+    ],
+  },
+  {
+    category: '🔧 Diagnosis Motor y Eficiencia OBD-II',
+    items: [
+      { type: 'boost', label: 'Presión de Turbo (Boost)' },
+      { type: 'fuel_consumption', label: 'Consumo de Combustible (L/100km)' },
+      { type: 'coolant_temp', label: 'Temp. Refrigerante OBD' },
+      { type: 'intake_temp', label: 'Temp. Aire Admisión (IAT)' },
+    ],
+  },
+  {
+    category: '🎯 Dinámica del Chasis y Fuerzas G',
+    items: [
+      { type: 'g_meter', label: 'G-Meter' },
+      { type: 'g_force_bars', label: 'Barras de Fuerzas G' },
+      { type: 'imu_raw', label: 'Aceleración Bruta IMU 3D (X, Y, Z)' },
+    ],
+  },
+  {
+    category: '🗺️ Navegación Satelital y Tiempo',
+    items: [
+      { type: 'map', label: 'Trazada GPS / Minimapa' },
+      { type: 'speed_graph', label: 'Gráfica Velocidad' },
+      { type: 'session_timer', label: 'Cronómetro de Tiempo' },
+      { type: 'altitude', label: 'Altitud GPS' },
+      { type: 'compass', label: 'Brújula / Rumbo GPS' },
+      { type: 'max_stats', label: 'Récords de Sesión (Max Stats)' },
+      { type: 'gps_coords', label: 'Coordenadas GPS (WGS84)' },
+      { type: 'gps_accuracy', label: 'Precisión Satelital (GNSS / GPS)' },
+    ],
+  },
+];
+
 export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   session,
   profile: propProfile,
@@ -81,7 +137,13 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     }
   }, [propTemplate]);
 
-  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>('tachometer_circular');
+  // Soporte de selección múltiple (con Ctrl / Cmd)
+  const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>(['tachometer_circular']);
+  const selectedWidgetId = selectedWidgetIds[selectedWidgetIds.length - 1] || null;
+  const setSelectedWidgetId = useCallback((id: string | null) => {
+    setSelectedWidgetIds(id ? [id] : []);
+  }, []);
+
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   // Lista de plantillas personalizadas guardadas por el usuario
@@ -125,7 +187,7 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
 
   const removeSelectedWidgetRef = useRef<() => void>(() => {});
 
-  // Atajos de teclado globales para el editor (Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, Suprimir/Borrar)
+  // Atajos de teclado globales para el editor (Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, Suprimir/Borrar, Flechas pixel a pixel)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
@@ -140,22 +202,76 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         handleRedo();
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedWidgetId) {
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedWidgetIds.length > 0) {
         e.preventDefault();
         removeSelectedWidgetRef.current();
+      } else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && selectedWidgetIds.length > 0) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        let dx = 0;
+        let dy = 0;
+        if (e.key === 'ArrowLeft') dx = -step;
+        else if (e.key === 'ArrowRight') dx = step;
+        else if (e.key === 'ArrowUp') dy = -step;
+        else if (e.key === 'ArrowDown') dy = step;
+
+        setTemplate((prev) => {
+          let minAllowedDx = -Infinity;
+          let maxAllowedDx = Infinity;
+          let minAllowedDy = -Infinity;
+          let maxAllowedDy = Infinity;
+
+          const selectedWidgets = prev.widgets.filter((w) => selectedWidgetIds.includes(w.id));
+          if (selectedWidgets.length === 0) return prev;
+
+          selectedWidgets.forEach((w) => {
+            minAllowedDx = Math.max(minAllowedDx, -w.bounds.x);
+            maxAllowedDx = Math.min(maxAllowedDx, prev.resolution.width - (w.bounds.x + w.bounds.width));
+            minAllowedDy = Math.max(minAllowedDy, -w.bounds.y);
+            maxAllowedDy = Math.min(maxAllowedDy, prev.resolution.height - (w.bounds.y + w.bounds.height));
+          });
+
+          const clampedDx = Math.max(minAllowedDx, Math.min(maxAllowedDx, dx));
+          const clampedDy = Math.max(minAllowedDy, Math.min(maxAllowedDy, dy));
+
+          if (clampedDx === 0 && clampedDy === 0) return prev;
+
+          pushToUndo(prev);
+
+          return {
+            ...prev,
+            widgets: prev.widgets.map((w) => {
+              if (!selectedWidgetIds.includes(w.id)) return w;
+              return {
+                ...w,
+                bounds: {
+                  ...w.bounds,
+                  x: Math.round(w.bounds.x + clampedDx),
+                  y: Math.round(w.bounds.y + clampedDy),
+                },
+              };
+            }),
+          };
+        });
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, selectedWidgetId]);
+  }, [handleUndo, handleRedo, selectedWidgetIds, pushToUndo]);
 
   // Estado de arrastre y redimensionado
   const [dragMode, setDragMode] = useState<DragMode>('none');
-  const dragStartRef = useRef<{ mouseX: number; mouseY: number; initialBounds: WidgetBounds }>({
+  const dragStartRef = useRef<{
+    mouseX: number;
+    mouseY: number;
+    initialBounds: WidgetBounds;
+    initialBoundsMap: Map<string, WidgetBounds>;
+  }>({
     mouseX: 0,
     mouseY: 0,
     initialBounds: { x: 0, y: 0, width: 0, height: 0 },
+    initialBoundsMap: new Map(),
   });
 
   // Instancia de OverlayRenderer sincronizada con template
@@ -367,49 +483,54 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
       renderer.render(ctx, dummySnap, profile, currentTime, session?.points || dummyPoints);
     }
 
-    // 3. Dibujar marco de selección y manejadores de redimensionado sobre el widget seleccionado
-    if (selectedWidget && selectedWidget.visible) {
-      const { x, y, width, height } = selectedWidget.bounds;
+    // 3. Dibujar marco de selección y manejadores sobre los widgets seleccionados
+    const activeSelectedWidgets = template.widgets.filter((w) => selectedWidgetIds.includes(w.id) && w.visible);
+
+    for (const w of activeSelectedWidgets) {
+      const { x, y, width, height } = w.bounds;
+      const isPrimary = w.id === selectedWidgetId;
 
       ctx.save();
       // Borde de selección
-      ctx.strokeStyle = CockpitColors.neonCyan;
+      ctx.strokeStyle = isPrimary ? CockpitColors.neonCyan : 'rgba(0, 229, 255, 0.55)';
       ctx.lineWidth = Math.max(1.5, Math.round(2 * resScale));
       ctx.setLineDash([4 * resScale, 4 * resScale]);
       ctx.strokeRect(x, y, width, height);
       ctx.setLineDash([]);
 
-      // 8 Manejadores de redimensión en las esquinas y puntos medios escalados
-      const handleSize = Math.max(8, Math.round(8 * resScale));
-      ctx.fillStyle = '#FFFFFF';
-      ctx.strokeStyle = CockpitColors.neonCyan;
-      ctx.lineWidth = Math.max(1.5, Math.round(1.5 * resScale));
+      // Si es el widget primario activo, dibujar los 8 manejadores de redimensión y la etiqueta de dimensiones
+      if (isPrimary) {
+        const handleSize = Math.max(8, Math.round(8 * resScale));
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = CockpitColors.neonCyan;
+        ctx.lineWidth = Math.max(1.5, Math.round(1.5 * resScale));
 
-      const handles = [
-        { x, y }, // NW
-        { x: x + width / 2, y }, // N
-        { x: x + width, y }, // NE
-        { x: x + width, y: y + height / 2 }, // E
-        { x: x + width, y: y + height }, // SE
-        { x: x + width / 2, y: y + height }, // S
-        { x, y: y + height }, // SW
-        { x, y: y + height / 2 }, // W
-      ];
+        const handles = [
+          { x, y }, // NW
+          { x: x + width / 2, y }, // N
+          { x: x + width, y }, // NE
+          { x: x + width, y: y + height / 2 }, // E
+          { x: x + width, y: y + height }, // SE
+          { x: x + width / 2, y: y + height }, // S
+          { x, y: y + height }, // SW
+          { x, y: y + height / 2 }, // W
+        ];
 
-      for (const h of handles) {
-        ctx.fillRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
-        ctx.strokeRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
+        for (const h of handles) {
+          ctx.fillRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
+          ctx.strokeRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
+        }
+
+        // Etiqueta de dimensiones
+        const labelFontSize = Math.max(11, Math.round(11 * resScale));
+        ctx.font = `bold ${labelFontSize}px ui-monospace, monospace`;
+        ctx.fillStyle = CockpitColors.neonCyan;
+        ctx.fillText(`${Math.round(width)}x${Math.round(height)}`, x, y - Math.round(6 * resScale));
       }
-
-      // Etiqueta de dimensiones
-      const labelFontSize = Math.max(11, Math.round(11 * resScale));
-      ctx.font = `bold ${labelFontSize}px ui-monospace, monospace`;
-      ctx.fillStyle = CockpitColors.neonCyan;
-      ctx.fillText(`${Math.round(width)}x${Math.round(height)}`, x, y - Math.round(6 * resScale));
 
       ctx.restore();
     }
-  }, [engine, currentTime, renderer, profile, session?.points, selectedWidget]);
+  }, [engine, currentTime, renderer, profile, session?.points, selectedWidget, selectedWidgetId, selectedWidgetIds, template.widgets]);
 
   useEffect(() => {
     renderEditorCanvas();
@@ -440,78 +561,110 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     const { x, y } = getCanvasCoords(e);
     dragInitialTemplateRef.current = template;
 
-    // 1. Comprobar si se pulsó sobre un manejador del widget seleccionado
-    if (selectedWidget && selectedWidget.visible) {
+    const isCtrl = e.ctrlKey || e.metaKey;
+
+    // 1. Comprobar si se pulsó sobre un manejador del widget principal seleccionado (solo si no se está usando Ctrl)
+    if (selectedWidget && selectedWidget.visible && !isCtrl) {
       const b = selectedWidget.bounds;
       const resScale = template.resolution.width / 1280;
       const hSize = Math.max(12, Math.round(12 * resScale));
 
       const isNear = (hx: number, hy: number) => Math.abs(x - hx) <= hSize && Math.abs(y - hy) <= hSize;
+      const singleMap = new Map<string, WidgetBounds>([[selectedWidget.id, { ...b }]]);
 
       if (isNear(b.x + b.width, b.y + b.height)) {
         setDragMode('se');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b }, initialBoundsMap: singleMap };
         return;
       }
       if (isNear(b.x + b.width, b.y)) {
         setDragMode('ne');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b }, initialBoundsMap: singleMap };
         return;
       }
       if (isNear(b.x, b.y + b.height)) {
         setDragMode('sw');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b }, initialBoundsMap: singleMap };
         return;
       }
       if (isNear(b.x, b.y)) {
         setDragMode('nw');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b }, initialBoundsMap: singleMap };
         return;
       }
       if (isNear(b.x + b.width, b.y + b.height / 2)) {
         setDragMode('e');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b }, initialBoundsMap: singleMap };
         return;
       }
       if (isNear(b.x, b.y + b.height / 2)) {
         setDragMode('w');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b }, initialBoundsMap: singleMap };
         return;
       }
       if (isNear(b.x + b.width / 2, b.y)) {
         setDragMode('n');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b }, initialBoundsMap: singleMap };
         return;
       }
       if (isNear(b.x + b.width / 2, b.y + b.height)) {
         setDragMode('s');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
-        return;
-      }
-
-      // Si se pulsa dentro del cuerpo del widget seleccionado, iniciar movimiento
-      if (x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height) {
-        setDragMode('move');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
+        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b }, initialBoundsMap: singleMap };
         return;
       }
     }
 
-    // 2. Comprobar si se pulsó sobre algún otro widget visible
+    // 2. Comprobar si se pulsó sobre algún widget en el lienzo
+    let hitWidget: typeof template.widgets[0] | null = null;
     for (let i = template.widgets.length - 1; i >= 0; i--) {
       const w = template.widgets[i];
       if (!w.visible) continue;
       const b = w.bounds;
       if (x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height) {
-        setSelectedWidgetId(w.id);
-        setDragMode('move');
-        dragStartRef.current = { mouseX: x, mouseY: y, initialBounds: { ...b } };
-        return;
+        hitWidget = w;
+        break;
       }
     }
 
+    if (hitWidget) {
+      let nextSelectedIds = [...selectedWidgetIds];
+      if (isCtrl) {
+        if (nextSelectedIds.includes(hitWidget.id)) {
+          nextSelectedIds = nextSelectedIds.filter((id) => id !== hitWidget!.id);
+        } else {
+          nextSelectedIds.push(hitWidget.id);
+        }
+      } else {
+        // Clic simple: si el elemento ya formaba parte de la selección múltiple, conservamos todos para poder arrastrarlos juntos
+        if (!nextSelectedIds.includes(hitWidget.id)) {
+          nextSelectedIds = [hitWidget.id];
+        }
+      }
+
+      setSelectedWidgetIds(nextSelectedIds);
+
+      // Si el widget clicado sigue seleccionado, iniciar movimiento simultáneo de todos los seleccionados
+      if (nextSelectedIds.includes(hitWidget.id)) {
+        setDragMode('move');
+        const boundsMap = new Map<string, WidgetBounds>();
+        for (const wid of nextSelectedIds) {
+          const item = template.widgets.find((w) => w.id === wid);
+          if (item) boundsMap.set(wid, { ...item.bounds });
+        }
+        dragStartRef.current = {
+          mouseX: x,
+          mouseY: y,
+          initialBounds: { ...hitWidget.bounds },
+          initialBoundsMap: boundsMap,
+        };
+      } else {
+        setDragMode('none');
+      }
+      return;
+    }
+
     // 3. Clic fuera de cualquier widget: deseleccionar
-    setSelectedWidgetId(null);
+    setSelectedWidgetIds([]);
     setDragMode('none');
   };
 
@@ -529,8 +682,37 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
     const aspectRatio = init.width / Math.max(1, init.height);
 
     if (dragMode === 'move') {
-      newBounds.x = Math.max(0, Math.min(template.resolution.width - init.width, init.x + dx));
-      newBounds.y = Math.max(0, Math.min(template.resolution.height - init.height, init.y + dy));
+      let minAllowedDx = -Infinity;
+      let maxAllowedDx = Infinity;
+      let minAllowedDy = -Infinity;
+      let maxAllowedDy = Infinity;
+
+      dragStartRef.current.initialBoundsMap.forEach((initB) => {
+        minAllowedDx = Math.max(minAllowedDx, -initB.x);
+        maxAllowedDx = Math.min(maxAllowedDx, template.resolution.width - (initB.x + initB.width));
+        minAllowedDy = Math.max(minAllowedDy, -initB.y);
+        maxAllowedDy = Math.min(maxAllowedDy, template.resolution.height - (initB.y + initB.height));
+      });
+
+      const clampedDx = Math.max(minAllowedDx, Math.min(maxAllowedDx, dx));
+      const clampedDy = Math.max(minAllowedDy, Math.min(maxAllowedDy, dy));
+
+      setTemplate((prev) => ({
+        ...prev,
+        widgets: prev.widgets.map((w) => {
+          const initB = dragStartRef.current.initialBoundsMap.get(w.id);
+          if (!initB) return w;
+          return {
+            ...w,
+            bounds: {
+              ...w.bounds,
+              x: Math.round(initB.x + clampedDx),
+              y: Math.round(initB.y + clampedDy),
+            },
+          };
+        }),
+      }));
+      return;
     } else if (dragMode === 'se') {
       if (keepRatio) {
         const scale = Math.abs(dx) > Math.abs(dy * aspectRatio) ? (init.width + dx) / init.width : (init.height + dy) / init.height;
@@ -772,13 +954,13 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
   };
 
   const removeSelectedWidget = () => {
-    if (!selectedWidget) return;
+    if (selectedWidgetIds.length === 0) return;
     pushToUndo(template);
     setTemplate((prev) => ({
       ...prev,
-      widgets: prev.widgets.filter((w) => w.id !== selectedWidget.id),
+      widgets: prev.widgets.filter((w) => !selectedWidgetIds.includes(w.id)),
     }));
-    setSelectedWidgetId(null);
+    setSelectedWidgetIds([]);
   };
   removeSelectedWidgetRef.current = removeSelectedWidget;
 
@@ -998,60 +1180,69 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
               </span>
             </div>
 
-            {/* Selector para añadir nuevo widget a ancho completo */}
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  addWidget(e.target.value as WidgetType);
-                  e.target.value = '';
-                }
-              }}
-              defaultValue=""
-              className="w-full bg-[#1A222B] hover:bg-[#202B37] border border-[#2C3947] text-xs font-mono text-[#00E676] rounded px-2.5 py-1.5 outline-none cursor-pointer transition-colors"
-            >
-              <option value="" disabled>
-                + Añadir widget...
-              </option>
-              <option value="tachometer_circular">Tacómetro Circular</option>
-              <option value="tachometer_forza">Tacómetro Racing (Estilo Forza)</option>
-              <option value="tachometer_bar">Tacómetro de Barra GT</option>
-              <option value="tachometer_horizontal">Tacómetro Horizontal F1/GT3</option>
-              <option value="shift_lights">Shift Lights</option>
-              <option value="gear_indicator">Indicador de Marcha (Gear)</option>
-              <option value="speedometer">Velocímetro Digital</option>
-              <option value="throttle">Pedal Acelerador</option>
-              <option value="brake_throttle">Pedales Duales (Freno / Gas)</option>
-              <option value="coolant_temp">Temp. Refrigerante OBD</option>
-              <option value="g_meter">G-Meter</option>
-              <option value="map">Trazada GPS / Minimapa</option>
-              <option value="speed_graph">Gráfica Velocidad</option>
-              <option value="session_timer">Cronómetro de Tiempo</option>
-              <option value="g_force_bars">Barras de Fuerzas G</option>
-              <option value="altitude">Altitud GPS</option>
-              <option value="compass">Brújula / Rumbo GPS</option>
-              <option value="max_stats">Récords de Sesión (Max Stats)</option>
-              <option value="gps_coords">Coordenadas GPS (WGS84)</option>
-              <option value="boost">Presión de Turbo (Boost)</option>
-              <option value="fuel_consumption">Consumo de Combustible (L/100km)</option>
-              <option value="intake_temp">Temp. Aire Admisión (IAT)</option>
-              <option value="imu_raw">Aceleración Bruta IMU 3D (X, Y, Z)</option>
-              <option value="gps_accuracy">Precisión Satelital (GNSS / GPS)</option>
-            </select>
+            {/* Selector categorizado para añadir nuevo widget excluyendo los ya agregados */}
+            {(() => {
+              const existingTypes = new Set(template.widgets.map((w) => w.type));
+              const availableCategories = WIDGET_CATEGORIES.map((cat) => ({
+                ...cat,
+                items: cat.items.filter((item) => !existingTypes.has(item.type)),
+              })).filter((cat) => cat.items.length > 0);
+
+              const totalAvailable = availableCategories.reduce((acc, c) => acc + c.items.length, 0);
+
+              return (
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      addWidget(e.target.value as WidgetType);
+                      e.target.value = '';
+                    }
+                  }}
+                  defaultValue=""
+                  disabled={totalAvailable === 0}
+                  className="w-full bg-[#1A222B] hover:bg-[#202B37] disabled:opacity-50 border border-[#2C3947] text-xs font-mono text-[#00E676] rounded px-2.5 py-1.5 outline-none cursor-pointer disabled:cursor-not-allowed transition-colors"
+                >
+                  <option value="" disabled>
+                    {totalAvailable > 0
+                      ? `+ Añadir widget (${totalAvailable} disp.)...`
+                      : 'Todos los widgets añadidos (24/24)'}
+                  </option>
+                  {availableCategories.map((cat) => (
+                    <optgroup key={cat.category} label={cat.category} className="bg-[#13181E] text-[#8B9CB0] font-sans font-bold">
+                      {cat.items.map((item) => (
+                        <option key={item.type} value={item.type} className="bg-[#1A222B] text-[#F0F4F8] font-mono">
+                          {item.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              );
+            })()}
           </div>
 
           {/* Lista de widgets */}
           <div className="space-y-1.5 max-h-[580px] overflow-y-auto">
             {template.widgets.map((w) => {
-              const isSelected = selectedWidgetId === w.id;
+              const isSelected = selectedWidgetIds.includes(w.id);
               return (
                 <div
                   key={w.id}
-                  onClick={() => setSelectedWidgetId(w.id)}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                      setSelectedWidgetIds((prev) =>
+                        prev.includes(w.id) ? prev.filter((id) => id !== w.id) : [...prev, w.id]
+                      );
+                    } else {
+                      setSelectedWidgetIds([w.id]);
+                    }
+                  }}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-mono cursor-pointer transition-all border ${
                     isSelected
-                      ? 'bg-[#1A222B] text-[#00E676] border-[#00E676]/50 shadow-sm'
+                      ? 'bg-[#1A222B] text-[#00E676] border-[#00E676]/60 shadow-sm ring-1 ring-[#00E676]/30'
                       : 'bg-[#090C0E]/50 text-[#8B9CB0] hover:text-[#F0F4F8] border-[#2C3947]/70'
                   }`}
+                  title="Haz clic para seleccionar o mantén Ctrl para selección múltiple"
                 >
                   <span className="truncate font-medium">{w.name}</span>
 
@@ -1235,18 +1426,54 @@ export const TemplateEditorScreen: React.FC<TemplateEditorScreenProps> = ({
               Propiedades
             </span>
 
-            {selectedWidget && (
+            {selectedWidgetIds.length > 0 && (
               <button
                 onClick={removeSelectedWidget}
                 className="p-1 rounded text-[#FF1744] hover:bg-[#FF1744]/10 transition-colors"
-                title="Eliminar widget"
+                title={selectedWidgetIds.length > 1 ? `Eliminar ${selectedWidgetIds.length} widgets` : 'Eliminar widget'}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {selectedWidget ? (
+          {selectedWidgetIds.length > 1 ? (
+            <div className="space-y-4 text-xs font-mono">
+              <div className="bg-[#1A222B] border border-[#00E5FF]/40 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2 text-[#00E5FF] font-bold">
+                  <Layers className="w-4 h-4" />
+                  <span>Selección Múltiple ({selectedWidgetIds.length})</span>
+                </div>
+                <p className="text-[11px] text-[#8B9CB0] leading-relaxed">
+                  Has seleccionado {selectedWidgetIds.length} widgets. Puedes arrastrarlos juntos por el lienzo o moverlos pixel a pixel con las <span className="text-[#F0F4F8] font-bold">flechas del teclado</span> (<kbd className="px-1 py-0.5 rounded bg-[#090C0E] border border-[#2C3947] text-[10px]">Shift</kbd> para 10px).
+                </p>
+              </div>
+
+              <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                {template.widgets
+                  .filter((w) => selectedWidgetIds.includes(w.id))
+                  .map((w) => (
+                    <div
+                      key={w.id}
+                      className="text-[11px] text-[#F0F4F8] bg-[#090C0E] px-2.5 py-1.5 rounded border border-[#2C3947] flex items-center justify-between"
+                    >
+                      <span className="truncate font-medium">{w.name}</span>
+                      <span className="text-[#8B9CB0] shrink-0 font-mono text-[10px]">
+                        X:{Math.round(w.bounds.x)} Y:{Math.round(w.bounds.y)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+
+              <button
+                onClick={removeSelectedWidget}
+                className="w-full py-2 px-3 rounded-lg bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] border border-[#FF1744]/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Eliminar {selectedWidgetIds.length} widgets seleccionados</span>
+              </button>
+            </div>
+          ) : selectedWidget ? (
             <div className="space-y-4 text-xs font-mono">
               <div>
                 <label className="block text-[#8B9CB0] mb-1">Nombre:</label>

@@ -2,8 +2,8 @@
 $ErrorActionPreference = "Stop"
 
 $repo = "GuacamoleGH/Tachyon-Studio-Rust"
-$tag = "v2.4.0"
-$title = "Tachyon Studio v2.4 PC"
+$tag = "v2.5.0"
+$title = "Tachyon Studio v2.5 PC"
 $body = @"
 ## 🏎️ Tachyon Studio Desktop v2.2 PC
 
@@ -107,15 +107,23 @@ function Upload-Asset($filePath, $assetName) {
 }
 
 # 4. Subir Instalador y Portable
-$installerPath = "src-tauri/target/release/bundle/nsis/Tachyon Studio_2.4.0_x64-setup.exe"
-$portableZipPath = "src-tauri/target/release/Tachyon_Studio_v2.4_PC_Portable.zip"
+$ver = $tag.TrimStart('v')
+$installerPath = "src-tauri/target/release/bundle/nsis/Tachyon Studio_${ver}_x64-setup.exe"
+$portableZipPath = "src-tauri/target/release/Tachyon_Studio_v${ver}_PC_Portable.zip"
 $portableExePath = "src-tauri/target/release/tachyon-studio.exe"
 
-Upload-Asset -filePath $installerPath -assetName "Tachyon-Studio-v2.4.0-Setup.exe"
-Upload-Asset -filePath $portableZipPath -assetName "Tachyon-Studio-v2.4.0-Portable.zip"
-Upload-Asset -filePath $portableExePath -assetName "Tachyon-Studio-v2.4.0.exe"
+# Empaquetar versión portable en ZIP
+if (Test-Path $portableExePath) {
+    if (Test-Path $portableZipPath) { Remove-Item $portableZipPath -Force }
+    Write-Host "Empaquetando ejecutable portable en $portableZipPath..." -ForegroundColor Cyan
+    Compress-Archive -Path $portableExePath -DestinationPath $portableZipPath -Force
+}
+
+Upload-Asset -filePath $installerPath -assetName "Tachyon-Studio-v${ver}-Setup.exe"
+Upload-Asset -filePath $portableZipPath -assetName "Tachyon-Studio-v${ver}-Portable.zip"
+Upload-Asset -filePath $portableExePath -assetName "Tachyon-Studio-v${ver}.exe"
 
 Write-Host "`n=================================================================" -ForegroundColor Green
-Write-Host "   ¡Release v2.4.0 publicada exitosamente en GitHub Releases!" -ForegroundColor Green
+Write-Host "   ¡Release $tag publicada exitosamente en GitHub Releases!" -ForegroundColor Green
 Write-Host "   URL: $($release.html_url)" -ForegroundColor Cyan
 Write-Host "=================================================================" -ForegroundColor Green

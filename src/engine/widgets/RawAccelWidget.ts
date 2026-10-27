@@ -56,10 +56,14 @@ export class RawAccelWidget implements BaseWidget {
     const topOffset = y + pad + titleFontSize + Math.round(6 * scale);
     const rowHeight = (height - (topOffset - y) - pad) / 3;
 
+    // Área delimitada para la barra horizontal en la mitad derecha del widget
+    const barLeft = x + width * 0.48;
+    const barRight = x + width - pad;
+    const barCenter = (barLeft + barRight) / 2;
+    const maxBarHalfW = (barRight - barLeft) / 2;
+
     axes.forEach((axis, i) => {
       const rowY = topOffset + i * rowHeight + rowHeight / 2;
-      const barCenter = x + width * 0.58;
-      const maxBarHalfW = width * 0.22;
 
       // Letra del eje
       ctx.font = `900 ${rowFontSize}px ui-monospace, SFMono-Regular, monospace`;
@@ -68,18 +72,17 @@ export class RawAccelWidget implements BaseWidget {
       ctx.textBaseline = 'middle';
       ctx.fillText(axis.name, x + pad, rowY);
 
-      // Valor numérico
+      // Valor numérico (alineado a la derecha antes del inicio de la barra, sin solaparse nunca)
       ctx.font = `bold ${rowFontSize}px ui-monospace, SFMono-Regular, monospace`;
       ctx.fillStyle = axis.val !== null ? '#F0F4F8' : CockpitColors.textMuted;
       ctx.textAlign = 'right';
       const valStr = axis.val !== null ? (axis.val >= 0 ? `+${axis.val.toFixed(1)}` : axis.val.toFixed(1)) : 'N/D';
-      ctx.fillText(valStr, barCenter - Math.round(6 * scale), rowY);
+      ctx.fillText(valStr, barLeft - Math.round(5 * scale), rowY);
 
       // Mini barra centrada en 0 (-15 a +15 m/s²)
       const barH = Math.max(2, Math.round(3.5 * scale));
       ctx.fillStyle = CockpitColors.cardBg;
-      ctx.fillRect(barCenter, rowY - barH / 2, maxBarHalfW, barH);
-      ctx.fillRect(barCenter - maxBarHalfW, rowY - barH / 2, maxBarHalfW, barH);
+      ctx.fillRect(barLeft, rowY - barH / 2, barRight - barLeft, barH);
 
       // Marca de centro
       ctx.fillStyle = CockpitColors.border;

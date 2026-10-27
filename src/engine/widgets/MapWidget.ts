@@ -29,6 +29,11 @@ export class MapWidget implements BaseWidget {
   private cachedGpsPoints: { lat: number; lon: number }[] | null = null;
   private cachedSourcePointsRef: any = null;
 
+  // Suavizado cinemático de coordenadas y rumbo para eliminar tirones (micro-stuttering) de GPS discretos (1Hz-10Hz)
+  private smoothLat: number | null = null;
+  private smoothLon: number | null = null;
+  private smoothHeading: number | null = null;
+
   constructor(bounds: WidgetBounds = { x: 330, y: 150, width: 200, height: 150 }) {
     this.bounds = bounds;
   }
@@ -106,9 +111,42 @@ export class MapWidget implements BaseWidget {
     // MODO 1: MINIMAPA DINÁMICO DE VIDEOJUEGO (CHASE ZOOM)
     // =========================================================================
     if (isChaseMode && hasCarPos) {
-      const carLat = snapshot.latitude!;
-      const carLon = snapshot.longitude!;
-      const headingDeg = snapshot.bearingAvailable && snapshot.bearingDeg != null ? snapshot.bearingDeg : 0;
+      const rawLat = snapshot.latitude!;
+      const rawLon = snapshot.longitude!;
+      const rawHeading = snapshot.bearingAvailable && snapshot.bearingDeg != null ? snapshot.bearingDeg : 0;
+
+      // Suavizado cinemático exponencial (EMA) para eliminar los tirones de GPS de baja frecuencia (1Hz-10Hz)
+      if (this.smoothLat === null || this.smoothLon === null) {
+        this.smoothLat = rawLat;
+        this.smoothLon = rawLon;
+        this.smoothHeading = rawHeading;
+      } else {
+        const distLat = Math.abs(rawLat - this.smoothLat);
+        const distLon = Math.abs(rawLon - this.smoothLon);
+        if (distLat > 0.05 || distLon > 0.05) {
+          this.smoothLat = rawLat;
+          this.smoothLon = rawLon;
+          this.smoothHeading = rawHeading;
+        } else {
+          const alphaPos = 0.22;
+          this.smoothLat = this.smoothLat + (rawLat - this.smoothLat) * alphaPos;
+          this.smoothLon = this.smoothLon + (rawLon - this.smoothLon) * alphaPos;
+
+          if (this.smoothHeading !== null) {
+            let diff = (rawHeading - this.smoothHeading) % 360;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            const alphaHeading = 0.18;
+            this.smoothHeading = (this.smoothHeading + diff * alphaHeading + 360) % 360;
+          } else {
+            this.smoothHeading = rawHeading;
+          }
+        }
+      }
+
+      const carLat = this.smoothLat;
+      const carLon = this.smoothLon;
+      const headingDeg = this.smoothHeading ?? rawHeading;
 
       const cx = x + width / 2;
       const cy = y + height / 2 + Math.round(6 * scale);
@@ -191,7 +229,10 @@ export class MapWidget implements BaseWidget {
 
       // Paso de muestreo adaptativo si la sesión tiene miles de puntos
       const stride = gpsPoints.length > 3000 ? Math.ceil(gpsPoints.length / 3000) : 1;
-      const projected: { px: number; py: number }[] = [];
+
+      ctx.beginPath();
+      let isDrawing = false;
+      let drawnCount = 0;
 
       for (let i = 0; i < gpsPoints.length; i += stride) {
         const pt = gpsPoints[i];
@@ -200,6 +241,8 @@ export class MapWidget implements BaseWidget {
 
         // Culling rápido en coordenadas cartesianas locales antes de rotar
         if (Math.abs(dx) > maxDistM || Math.abs(dy) > maxDistM) {
+          // Si el punto queda fuera del visor, desconectamos el trazo para no cruzar líneas
+          isDrawing = false;
           continue;
         }
 
@@ -210,19 +253,19 @@ export class MapWidget implements BaseWidget {
           ry = dx * sinR + dy * cosR;
         }
 
-        projected.push({
-          px: cx + rx * scaleM,
-          py: cy - ry * scaleM,
-        });
+        const px = cx + rx * scaleM;
+        const py = cy - ry * scaleM;
+
+        if (!isDrawing) {
+          ctx.moveTo(px, py);
+          isDrawing = true;
+        } else {
+          ctx.lineTo(px, py);
+        }
+        drawnCount++;
       }
 
-      if (projected.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(projected[0].px, projected[0].py);
-        for (let i = 1; i < projected.length; i++) {
-          ctx.lineTo(projected[i].px, projected[i].py);
-        }
-
+      if (drawnCount > 1) {
         if (this.mapBackground !== 'none') {
           // Borde oscuro grueso para alto contraste sobre calles o fondo claro (estilo app móvil Tachyon)
           ctx.strokeStyle = 'rgba(10, 15, 20, 0.9)';
@@ -403,9 +446,20 @@ export class MapWidget implements BaseWidget {
       ctx.stroke();
     }
 
-    // Posición del coche - Puntito limpio
+    // Posición del coche - Puntito limpio con interpolación suave
     if (snapshot.gpsAvailable && snapshot.latitude != null && snapshot.longitude != null) {
-      const { px, py } = project(snapshot.latitude, snapshot.longitude);
+      const rawLat = snapshot.latitude;
+      const rawLon = snapshot.longitude;
+
+      if (this.smoothLat === null || this.smoothLon === null || Math.abs(rawLat - this.smoothLat) > 0.05 || Math.abs(rawLon - this.smoothLon) > 0.05) {
+        this.smoothLat = rawLat;
+        this.smoothLon = rawLon;
+      } else {
+        this.smoothLat = this.smoothLat + (rawLat - this.smoothLat) * 0.22;
+        this.smoothLon = this.smoothLon + (rawLon - this.smoothLon) * 0.22;
+      }
+
+      const { px, py } = project(this.smoothLat, this.smoothLon);
 
       // Halo exterior
       ctx.beginPath();

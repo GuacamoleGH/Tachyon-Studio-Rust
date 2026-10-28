@@ -116,4 +116,20 @@ describe('Video Exporter & WebCodecs Capabilities', () => {
 
     expect(isGoodCovered).toBe(true);
   });
+
+  it('declara y estructura correctamente los avisos de audio y seek fallback en ExportResult', () => {
+    const mockResult = {
+      blob: undefined,
+      fileSavedDirectly: true,
+      durationSec: 15.0,
+      totalFramesEncoded: 450,
+      audioPassthroughSuccess: false,
+      audioWarning: 'El archivo de vídeo no contiene ninguna pista de audio.',
+      usedSeekFallback: true,
+    };
+
+    expect(mockResult.audioPassthroughSuccess).toBe(false);
+    expect(mockResult.audioWarning).toContain('ninguna pista de audio');
+    expect(mockResult.usedSeekFallback).toBe(true);
+  });
 });

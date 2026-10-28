@@ -36,6 +36,11 @@ export interface ExportProgress {
   status: string;
 }
 
+export interface ExportWarning {
+  type: 'audio_missing' | 'audio_error' | 'seek_fallback';
+  message: string;
+}
+
 export interface VideoExporterOptions {
   mode: ExportMode;
   startSec: number;
@@ -51,6 +56,8 @@ export interface VideoExporterOptions {
   customTarget?: Target;
   useFileSystemAccess?: boolean;
   onProgress?: (p: ExportProgress) => void;
+  onWarning?: (w: ExportWarning) => void;
+  allowSilentAudio?: boolean;
   cancellationToken?: { isCancelled: boolean };
 }
 
@@ -59,6 +66,9 @@ export interface ExportResult {
   fileSavedDirectly: boolean;
   durationSec: number;
   totalFramesEncoded: number;
+  audioPassthroughSuccess?: boolean;
+  audioWarning?: string;
+  usedSeekFallback?: boolean;
 }
 
 /**
@@ -111,8 +121,13 @@ export class VideoExporter {
       videoSourceElement,
       useFileSystemAccess = false,
       onProgress,
+      onWarning,
       cancellationToken,
     } = options;
+
+    let audioWarning: string | undefined;
+    let audioPassthroughConfigured = false;
+    let usedSeekFallback = false;
 
     const durationSec = Math.max(0.1, endSec - startSec);
     const totalFrames = Math.max(1, Math.round(durationSec * fps));
@@ -228,10 +243,18 @@ export class VideoExporter {
           if (audioCodec) {
             audioSource = new EncodedAudioPacketSource(audioCodec);
             output.addAudioTrack(audioSource);
+            audioPassthroughConfigured = true;
+          } else {
+            audioWarning = 'La pista de audio original no posee un códec compatible para passthrough directo. El vídeo se exportará sin audio.';
+            onWarning?.({ type: 'audio_missing', message: audioWarning });
           }
-        } catch (err) {
-          console.warn('No se pudo inicializar la pista de audio passthrough:', err);
+        } catch (err: any) {
+          audioWarning = `No se pudo inicializar la pista de audio passthrough: ${err?.message || err}. El vídeo se exportará sin audio.`;
+          onWarning?.({ type: 'audio_error', message: audioWarning });
         }
+      } else if (!audioTrack && isCombined) {
+        audioWarning = 'El vídeo de origen no contiene ninguna pista de audio. El vídeo exportado será mudo.';
+        onWarning?.({ type: 'audio_missing', message: audioWarning });
       }
     }
 
@@ -272,8 +295,9 @@ export class VideoExporter {
               await audioSource.add(shiftedPacket);
             }
           }
-        } catch (audioErr) {
-          console.warn('Advertencia durante la copia de paquetes de audio original:', audioErr);
+        } catch (audioErr: any) {
+          audioWarning = `Advertencia durante la copia de paquetes de audio original: ${audioErr?.message || audioErr}. El audio exportado podría ser parcial o mudo.`;
+          onWarning?.({ type: 'audio_error', message: audioWarning });
         }
       })();
     }
@@ -325,6 +349,13 @@ export class VideoExporter {
             }
           } else if (videoSourceElement && t >= 0 && t <= videoSourceElement.duration) {
             // Fallback para elementos de vídeo del navegador si no hay blob
+            if (!usedSeekFallback) {
+              usedSeekFallback = true;
+              onWarning?.({
+                type: 'seek_fallback',
+                message: 'Modo de compatibilidad HTMLVideoElement activo: la sincronización de fotogramas utiliza el navegador (precisión estándar).',
+              });
+            }
             await seekVideoTo(videoSourceElement, t);
             (ctx as CanvasRenderingContext2D).drawImage(videoSourceElement, 0, 0, width, height);
           } else {
@@ -402,6 +433,9 @@ export class VideoExporter {
         fileSavedDirectly,
         durationSec,
         totalFramesEncoded: totalFrames,
+        audioPassthroughSuccess: audioPassthroughConfigured,
+        audioWarning,
+        usedSeekFallback,
       };
     } catch (err) {
       try { await output.cancel(); } catch (_) {}

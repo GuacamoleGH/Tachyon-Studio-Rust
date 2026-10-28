@@ -21,6 +21,7 @@ import { StreamTarget } from 'mediabunny';
 import {
   ExportMode,
   ExportProgress,
+  ExportWarning,
   isFileSystemAccessSupported,
   isWebCodecsSupported,
   VideoExporter,
@@ -176,6 +177,9 @@ export const RenderModal: React.FC<RenderModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
   const [fileSavedDirectly, setFileSavedDirectly] = useState<boolean>(false);
+  const [warnings, setWarnings] = useState<ExportWarning[]>([]);
+  const [resultAudioWarning, setResultAudioWarning] = useState<string | null>(null);
+  const [usedSeekFallback, setUsedSeekFallback] = useState<boolean>(false);
 
   const cancellationTokenRef = useRef<{ isCancelled: boolean }>({ isCancelled: false });
   const hiddenVideoRef = useRef<HTMLVideoElement>(null);
@@ -187,6 +191,9 @@ export const RenderModal: React.FC<RenderModalProps> = ({
     setError(null);
     setOutputBlob(null);
     setFileSavedDirectly(false);
+    setWarnings([]);
+    setResultAudioWarning(null);
+    setUsedSeekFallback(false);
     cancellationTokenRef.current = { isCancelled: false };
 
     const engine = TimeEngine.fromBundle(session);
@@ -228,6 +235,12 @@ export const RenderModal: React.FC<RenderModalProps> = ({
         customTarget,
         useFileSystemAccess: useStreaming && !isTauri && hasFSA,
         onProgress: setProgress,
+        onWarning: (w) => {
+          setWarnings((prev) => [...prev, w]);
+          if (w.type === 'seek_fallback') {
+            setUsedSeekFallback(true);
+          }
+        },
         cancellationToken: cancellationTokenRef.current,
       });
 
@@ -239,6 +252,12 @@ export const RenderModal: React.FC<RenderModalProps> = ({
         setOutputBlob(res.blob);
       }
       setFileSavedDirectly(res.fileSavedDirectly);
+      if (res.audioWarning) {
+        setResultAudioWarning(res.audioWarning);
+      }
+      if (res.usedSeekFallback) {
+        setUsedSeekFallback(true);
+      }
     } catch (err: unknown) {
       if (tauriWriter) {
         try { await tauriWriter.abort(); } catch (_) {}
@@ -309,8 +328,13 @@ export const RenderModal: React.FC<RenderModalProps> = ({
               <Cpu className="w-4 h-4 stroke-[2.2]" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[#F0F4F8]">
-                Exportar y Renderizar Vídeo (WebCodecs)
+              <h2 className="text-base font-bold text-[#F0F4F8] flex items-center gap-2">
+                <span>Exportar y Renderizar Vídeo (WebCodecs)</span>
+                {usedSeekFallback && (
+                  <span className="text-[10px] bg-[#FFB300]/20 text-[#FFB300] border border-[#FFB300]/40 px-2 py-0.5 rounded-full font-bold">
+                    Precisión estándar
+                  </span>
+                )}
               </h2>
               <p className="text-xs text-[#8B9CB0]">
                 Aceleración por hardware en el navegador. Sin servidores ni marcas de agua.
@@ -403,6 +427,16 @@ export const RenderModal: React.FC<RenderModalProps> = ({
                   : 'El vídeo ha sido generado en memoria listo para ser descargado a tu carpeta.'}
               </p>
 
+              {resultAudioWarning && (
+                <div className="p-3 bg-[#FFB300]/15 border border-[#FFB300]/40 rounded-xl text-[#FFB300] flex items-start gap-2.5 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold">Nota de pista de audio:</strong>
+                    <span>{resultAudioWarning}</span>
+                  </div>
+                </div>
+              )}
+
               {!fileSavedDirectly && outputBlob && (
                 <button
                   onClick={handleDownloadBlob}
@@ -414,6 +448,26 @@ export const RenderModal: React.FC<RenderModalProps> = ({
                   </span>
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Advertencias visibles activas */}
+          {warnings.length > 0 && !outputBlob && !fileSavedDirectly && (
+            <div className="space-y-2">
+              {warnings.map((w, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 bg-[#FFB300]/15 border border-[#FFB300]/40 rounded-xl text-[#FFB300] flex items-start gap-2.5 text-xs animate-fadeIn"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold">
+                      {w.type === 'seek_fallback' ? 'Precisión de vídeo:' : 'Aviso de Audio:'}
+                    </strong>
+                    <span>{w.message}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

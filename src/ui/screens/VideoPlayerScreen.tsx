@@ -289,7 +289,7 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
     });
   }, [isPlaying, currentTime, drawOverlayFrame]);
 
-  // Bucle de sincronización de vídeo con requestVideoFrameCallback o requestAnimationFrame
+  // Bucle de sincronización de alta frecuencia (60-144 Hz) para tacómetro, velocidad y telemetría
   useEffect(() => {
     let animId: number;
     const video = videoRef.current;
@@ -297,35 +297,41 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
     if (session.hasVideo && video) {
       let isCallbackActive = true;
       let lastReactTimeUpdate = 0;
+      let lastVideoTime = video.currentTime;
+      let lastVideoUpdatePerf = performance.now();
 
       const onFrame = () => {
         if (!isCallbackActive) return;
         if (!video.paused && !video.ended) {
-          const t = video.currentTime;
-          drawOverlayFrame(t);
-
-          // Throttling del estado de React a ~4 Hz para no disparar 60 re-renders
-          // de todo el componente por segundo, liberando la CPU para el canvas y vídeo
           const now = performance.now();
-          if (now - lastReactTimeUpdate > 250) {
-            lastReactTimeUpdate = now;
-            setCurrentTime(t);
+          const currentVideoTime = video.currentTime;
+
+          if (currentVideoTime !== lastVideoTime) {
+            lastVideoTime = currentVideoTime;
+            lastVideoUpdatePerf = now;
           }
 
-          if ('requestVideoFrameCallback' in video) {
-            (video as any).requestVideoFrameCallback(onFrame);
-          } else {
-            animId = requestAnimationFrame(onFrame);
+          // Interpolar tiempo continuo a la tasa de refresco del monitor (60 Hz+)
+          const deltaSec = (now - lastVideoUpdatePerf) / 1000;
+          const effectiveTime =
+            deltaSec >= 0 && deltaSec < 0.25
+              ? Math.min(duration, lastVideoTime + deltaSec * (video.playbackRate || 1))
+              : currentVideoTime;
+
+          drawOverlayFrame(effectiveTime);
+
+          // Throttling del estado de React (~15 Hz / 66ms) para barra de progreso y reloj
+          // sin saturar de re-renders el DOM
+          if (now - lastReactTimeUpdate > 66) {
+            lastReactTimeUpdate = now;
+            setCurrentTime(effectiveTime);
           }
         }
+        animId = requestAnimationFrame(onFrame);
       };
 
       if (isPlaying) {
-        if ('requestVideoFrameCallback' in video) {
-          (video as any).requestVideoFrameCallback(onFrame);
-        } else {
-          animId = requestAnimationFrame(onFrame);
-        }
+        animId = requestAnimationFrame(onFrame);
       }
 
       return () => {
@@ -333,25 +339,38 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
         cancelAnimationFrame(animId);
       };
     } else if (isPlaying) {
-      // Modo sin vídeo (simulación de tiempo)
+      // Modo sin vídeo (simulación fluida a 60 Hz con requestAnimationFrame)
+      let animIdNoVideo: number;
       let lastTime = performance.now();
-      const interval = setInterval(() => {
+      let lastReactTimeUpdate = 0;
+      let simTime = currentTime;
+
+      const loopNoVideo = () => {
         const now = performance.now();
         const dt = (now - lastTime) / 1000;
         lastTime = now;
 
-        setCurrentTime((prev) => {
-          const next = prev + dt * playbackSpeed;
-          if (next >= duration) {
-            setIsPlaying(false);
-            return duration;
-          }
-          drawOverlayFrame(next);
-          return next;
-        });
-      }, 1000 / 60);
+        simTime += dt * playbackSpeed;
+        if (simTime >= duration) {
+          simTime = duration;
+          drawOverlayFrame(simTime);
+          setCurrentTime(duration);
+          setIsPlaying(false);
+          return;
+        }
 
-      return () => clearInterval(interval);
+        drawOverlayFrame(simTime);
+
+        if (now - lastReactTimeUpdate > 66) {
+          lastReactTimeUpdate = now;
+          setCurrentTime(simTime);
+        }
+
+        animIdNoVideo = requestAnimationFrame(loopNoVideo);
+      };
+
+      animIdNoVideo = requestAnimationFrame(loopNoVideo);
+      return () => cancelAnimationFrame(animIdNoVideo);
     }
   }, [isPlaying, session.hasVideo, duration, playbackSpeed, drawOverlayFrame]);
 

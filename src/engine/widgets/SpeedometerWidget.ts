@@ -8,8 +8,6 @@ export class SpeedometerWidget implements BaseWidget {
   public bounds: WidgetBounds;
   public visible: boolean = true;
   public preferredSource: 'AUTO' | 'GPS' | 'OBD' = 'AUTO';
-  private smoothedSpeed: number | null = null;
-  private lastTimeSec: number = 0;
 
   constructor(bounds: WidgetBounds = { x: 30, y: 310, width: 220, height: 110 }) {
     this.bounds = bounds;
@@ -17,14 +15,14 @@ export class SpeedometerWidget implements BaseWidget {
 
   public render(context: WidgetRenderContext): void {
     if (!this.visible) return;
-    const { ctx, snapshot, unitSystem, timeSec } = context;
+    const { ctx, snapshot, unitSystem } = context;
     const { x, y, width, height } = this.bounds;
 
     let rawSpeedKmh: number | null = null;
     let isAvailable = false;
     let sourceLabel = 'VELOCIDAD';
 
-    // Determinar la mejor fuente de velocidad (OBD es de alta frecuencia 10Hz+, GPS es 1Hz)
+    // Determinar la mejor fuente de velocidad (OBD y GPS a alta frecuencia hasta 10 Hz)
     const hasObd = snapshot.signals.obd_speed_kmh?.isAvailable && snapshot.signals.obd_speed_kmh.value !== null;
     const hasGps = snapshot.signals.gps_speed_kmh?.isAvailable && snapshot.signals.gps_speed_kmh.value !== null;
 
@@ -51,21 +49,9 @@ export class SpeedometerWidget implements BaseWidget {
       sourceLabel = 'SPEED';
     }
 
-    // Suavizado dinámico adaptativo para eliminar tirones en cambios bruscos de 1Hz
-    if (rawSpeedKmh !== null) {
-      const dt = Math.abs(timeSec - this.lastTimeSec);
-      if (this.smoothedSpeed === null || dt > 0.4) {
-        this.smoothedSpeed = rawSpeedKmh;
-      } else {
-        const alpha = Math.min(1, 0.45 + dt * 2);
-        this.smoothedSpeed += (rawSpeedKmh - this.smoothedSpeed) * alpha;
-      }
-      this.lastTimeSec = timeSec;
-    } else {
-      this.smoothedSpeed = null;
-    }
-
-    const currentSpeedVal = this.smoothedSpeed !== null ? this.smoothedSpeed : rawSpeedKmh;
+    // Telemetría a alta frecuencia (hasta 10 Hz) e interpolación continua a 60 Hz:
+    // respuesta inmediata sin retardo ni desfase de filtrado artificial
+    const currentSpeedVal = rawSpeedKmh;
     const isImperial = unitSystem === 'imperial';
     const displaySpeed = currentSpeedVal !== null ? (isImperial ? currentSpeedVal * 0.621371 : currentSpeedVal) : null;
     const unitLabel = isImperial ? 'MPH' : 'KM/H';

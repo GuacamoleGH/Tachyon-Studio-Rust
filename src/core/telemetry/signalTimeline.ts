@@ -49,6 +49,8 @@ export class SignalTimeline {
       this.interpolation = interpolation;
     } else if (signalKey === 'bearing_deg') {
       this.interpolation = 'angle';
+    } else if (signalKey === 'gear') {
+      this.interpolation = 'step';
     } else {
       this.interpolation = 'linear';
     }

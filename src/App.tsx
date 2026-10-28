@@ -1,7 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SessionBundle } from './core/model/session';
 import { importSessionZip, ZipInputSource } from './core/zip/zipImporter';
-import { isTauriEnvironment, openSessionDialog } from './core/fs/fileSystemAdapter';
+import {
+  isTauriEnvironment,
+  openSessionDialog,
+  cleanupTempFiles,
+  cleanSessionTempFile,
+} from './core/fs/fileSystemAdapter';
 import { AppTab, Navbar } from './ui/components/Navbar';
 import { ZipDropzone } from './ui/components/ZipDropzone';
 import { SessionSummaryScreen } from './ui/screens/SessionSummaryScreen';
@@ -39,6 +44,13 @@ export const App: React.FC = () => {
   const [isGoProJoinerOpen, setIsGoProJoinerOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Limpiar temporales antiguos al arrancar la aplicación en Tauri
+  useEffect(() => {
+    if (isTauriEnvironment()) {
+      cleanupTempFiles(24, 1024).catch(() => {});
+    }
+  }, []);
 
   // En entorno Tauri de escritorio, capturar eventos nativos de arrastrar y soltar
   // para obtener la ruta absoluta en disco y evitar que el navegador limite a Blobs en RAM
@@ -84,6 +96,10 @@ export const App: React.FC = () => {
     setProgressText('Iniciando lectura de la sesión...');
 
     try {
+      if (session?.videoPath && !session.videoStoredInZip) {
+        cleanSessionTempFile(session.videoPath).catch(() => {});
+      }
+
       const bundle = await importSessionZip(source, (step, pct) => {
         setProgressText(step);
         setProgressPercent(pct);

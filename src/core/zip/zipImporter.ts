@@ -13,9 +13,11 @@ import {
   isTauriEnvironment,
   inspectNativeZipSession,
   createTauriFileSource,
+  createZipStoredVideoSource,
   extractNativeZipVideoToTemp,
+  NativeFileInfo,
 } from '../fs/fileSystemAdapter';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 
 export interface ImportProgressCallback {
   (step: string, percentage: number): void;
@@ -263,25 +265,64 @@ export async function importSessionZip(
       videoFileName = inspection.video_entry.entry_name;
       videoZipPath = zipPath;
 
-      onProgress?.('Extrayendo vídeo de sesión a almacenamiento temporal...', 60);
-      try {
-        const tempVideoPath = await extractNativeZipVideoToTemp(zipPath, inspection.video_entry.entry_name);
-        const tauriSource = createTauriFileSource(tempVideoPath, inspection.video_entry.size);
-        const assetUrl = convertFileSrc(tempVideoPath);
-
-        videoPath = tempVideoPath;
-        videoUrl = assetUrl;
-        videoSource = tauriSource;
-        videoStoredInZip = false;
+      if (inspection.video_entry.is_stored) {
+        // Vídeo STORED en el ZIP: leer por rangos directamente del ZIP sin extraer
+        onProgress?.('Configurando acceso por rangos a vídeo STORED directamente del ZIP...', 60);
+        videoSource = createZipStoredVideoSource(
+          zipPath,
+          inspection.video_entry.data_offset,
+          inspection.video_entry.size
+        );
+        videoPath = zipPath;
+        videoUrl = convertFileSrc(zipPath);
+        videoStoredInZip = true;
         videoCompressedInZip = false;
-      } catch (err) {
-        console.warn('Error al extraer vídeo a disco temporal:', err);
-        videoCompressedInZip = true;
-        videoLoadWarning =
-          'No se pudo extraer automáticamente el vídeo del ZIP. Puedes vincular el archivo de vídeo suelto desde tu disco.';
+      } else {
+        // Vídeo comprimido (DEFLATED): extraer a %TEMP%
+        onProgress?.('Extrayendo vídeo comprimido (DEFLATED) a almacenamiento temporal...', 60);
+        try {
+          const tempVideoPath = await extractNativeZipVideoToTemp(zipPath, inspection.video_entry.entry_name);
+          const tauriSource = createTauriFileSource(tempVideoPath, inspection.video_entry.size);
+          const assetUrl = convertFileSrc(tempVideoPath);
+
+          videoPath = tempVideoPath;
+          videoUrl = assetUrl;
+          videoSource = tauriSource;
+          videoStoredInZip = false;
+          videoCompressedInZip = false;
+        } catch (err) {
+          console.warn('Error al extraer vídeo a disco temporal:', err);
+          videoCompressedInZip = true;
+          videoLoadWarning =
+            'No se pudo extraer automáticamente el vídeo comprimido del ZIP. Puedes vincular el archivo de vídeo suelto desde tu disco.';
+        }
       }
     } else if (metadata?.video_synchronization?.has_video) {
       hasVideo = true;
+      // Comprobar si el vídeo fue exportado SUELTO junto al ZIP en la misma carpeta
+      const externalFilename =
+        (metadata.video_synchronization as any).external_video_filename ||
+        metadata.video_synchronization.video_filename ||
+        'video.mp4';
+
+      const zipDir = zipPath.replace(/[/\\][^/\\]+$/, '');
+      const candidateExternalPath = `${zipDir}/${externalFilename}`.replace(/\\/g, '/');
+
+      try {
+        const fileInfo = await invoke<NativeFileInfo>('get_file_info', { path: candidateExternalPath });
+        if (fileInfo.exists && fileInfo.size > 0) {
+          videoFileName = externalFilename;
+          videoPath = candidateExternalPath;
+          videoSource = createTauriFileSource(candidateExternalPath, fileInfo.size);
+          videoUrl = convertFileSrc(candidateExternalPath);
+          videoStoredInZip = false;
+          videoCompressedInZip = false;
+        } else {
+          videoLoadWarning = `El vídeo exportado suelto ("${externalFilename}") no se encontró en la carpeta de la sesión ("${zipDir}"). Puede vincularlo manualmente mediante "Vincular Vídeo MP4".`;
+        }
+      } catch (e) {
+        videoLoadWarning = `No se pudo verificar el archivo de vídeo externo ("${externalFilename}"): ${e}. Puede vincularlo manualmente.`;
+      }
     }
 
     onProgress?.('Analizando frecuencias reales y huecos temporales...', 85);

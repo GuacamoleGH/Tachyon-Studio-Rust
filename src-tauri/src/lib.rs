@@ -232,6 +232,9 @@ mod commands {
         if let Some(file_path) = res {
             if let Ok(p) = file_path.into_path() {
                 let canon = dunce::canonicalize(&p).unwrap_or(p);
+                if let Some(parent) = canon.parent() {
+                    state.grant(parent);
+                }
                 state.grant(&canon);
                 return Ok(Some(canon.to_string_lossy().to_string()));
             }
@@ -262,6 +265,9 @@ mod commands {
             for file_path in file_paths {
                 if let Ok(p) = file_path.into_path() {
                     let canon = dunce::canonicalize(&p).unwrap_or(p);
+                    if let Some(parent) = canon.parent() {
+                        state.grant(parent);
+                    }
                     state.grant(&canon);
                     list.push(canon.to_string_lossy().to_string());
                 }
@@ -582,6 +588,95 @@ mod commands {
     }
 
     #[tauri::command]
+    pub fn cleanup_temp_files(
+        max_age_hours: Option<u64>,
+        max_total_size_mb: Option<u64>,
+    ) -> Result<u64, String> {
+        let temp_dir = std::env::temp_dir();
+        let max_age_secs = max_age_hours.unwrap_or(24) * 3600;
+        let max_bytes = max_total_size_mb.unwrap_or(1024) * 1024 * 1024;
+
+        let now = std::time::SystemTime::now();
+        let entries = match std::fs::read_dir(&temp_dir) {
+            Ok(rd) => rd,
+            Err(e) => return Err(format!("Error leyendo directorio temporal: {}", e)),
+        };
+
+        struct TempFileItem {
+            path: PathBuf,
+            size: u64,
+            age_secs: u64,
+        }
+
+        let mut items: Vec<TempFileItem> = Vec::new();
+        let mut total_size: u64 = 0;
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with("tachyon_") {
+                    if let Ok(meta) = entry.metadata() {
+                        let size = meta.len();
+                        let age_secs = meta
+                            .modified()
+                            .ok()
+                            .and_then(|m| now.duration_since(m).ok())
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0);
+
+                        total_size += size;
+                        items.push(TempFileItem {
+                            path,
+                            size,
+                            age_secs,
+                        });
+                    }
+                }
+            }
+        }
+
+        let mut deleted_bytes: u64 = 0;
+
+        // 1. Eliminar archivos que superen la edad máxima
+        items.retain(|item| {
+            if item.age_secs > max_age_secs {
+                if std::fs::remove_file(&item.path).is_ok() {
+                    deleted_bytes += item.size;
+                    total_size = total_size.saturating_sub(item.size);
+                    return false;
+                }
+            }
+            true
+        });
+
+        // 2. Si el tamaño total sigue superando el límite, eliminar los más antiguos primero
+        if total_size > max_bytes {
+            items.sort_by(|a, b| b.age_secs.cmp(&a.age_secs));
+            for item in items {
+                if total_size <= max_bytes {
+                    break;
+                }
+                if std::fs::remove_file(&item.path).is_ok() {
+                    deleted_bytes += item.size;
+                    total_size = total_size.saturating_sub(item.size);
+                }
+            }
+        }
+
+        Ok(deleted_bytes)
+    }
+
+    #[tauri::command]
+    pub fn clean_session_temp_file(path: String) -> Result<bool, String> {
+        let p = PathBuf::from(&path);
+        if is_app_generated_temp_path(&p) && p.exists() {
+            std::fs::remove_file(&p).map_err(|e| format!("Error eliminando archivo temporal: {}", e))?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    #[tauri::command]
     pub fn detect_ffmpeg() -> FfmpegCapabilities {
         let ffmpeg_path = match locate_ffmpeg_executable() {
             Some(p) => p,
@@ -837,6 +932,8 @@ pub fn run() {
             commands::close_stream_writer,
             commands::inspect_zip_session,
             commands::extract_zip_video_to_temp,
+            commands::cleanup_temp_files,
+            commands::clean_session_temp_file,
             commands::detect_ffmpeg,
             commands::run_ffmpeg_command,
             commands::execute_safe_ffmpeg,
@@ -918,5 +1015,31 @@ mod tests {
         assert!(validate_safe_audio_codec("malicious_codec").is_err());
         assert!(validate_safe_audio_codec("; rm -rf /").is_err());
         assert!(validate_safe_audio_codec("h264").is_err());
+    }
+
+    #[test]
+    fn test_clean_session_temp_file_removes_app_temp() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join(format!("tachyon_test_clean_{}.tmp", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::write(&test_file, b"sample temporary data").unwrap();
+        assert!(test_file.exists());
+
+        let res = commands::clean_session_temp_file(test_file.to_string_lossy().to_string());
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), true);
+        assert!(!test_file.exists(), "El archivo temporal debió ser eliminado");
+    }
+
+    #[test]
+    fn test_clean_session_temp_file_refuses_arbitrary_files() {
+        let temp_dir = std::env::temp_dir();
+        let safe_user_file = temp_dir.join("user_normal_file.txt");
+        let _ = std::fs::write(&safe_user_file, b"important data");
+
+        let res = commands::clean_session_temp_file(safe_user_file.to_string_lossy().to_string());
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), false, "No debe eliminar archivos que no comiencen por tachyon_");
+        assert!(safe_user_file.exists());
+        let _ = std::fs::remove_file(safe_user_file);
     }
 }

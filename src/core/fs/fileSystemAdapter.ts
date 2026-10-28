@@ -174,6 +174,39 @@ export async function extractNativeZipVideoToTemp(zipPath: string, entryName: st
 }
 
 /**
+ * Limpia los archivos temporales de Tachyon generados en %TEMP%.
+ * @param maxAgeHours Antigüedad máxima en horas antes de ser eliminados (por defecto 24h).
+ * @param maxTotalSizeMb Límite acumulado en MB antes de purgar los más antiguos (por defecto 1024 MB).
+ */
+export async function cleanupTempFiles(maxAgeHours = 24, maxTotalSizeMb = 1024): Promise<number> {
+  if (isTauriEnvironment()) {
+    try {
+      return await invoke<number>('cleanup_temp_files', {
+        maxAgeHours,
+        maxTotalSizeMb,
+      });
+    } catch (e) {
+      console.warn('Error al limpiar archivos temporales de Tachyon:', e);
+    }
+  }
+  return 0;
+}
+
+/**
+ * Elimina un archivo temporal específico creado para la sesión activa al cerrarla.
+ */
+export async function cleanSessionTempFile(path: string): Promise<boolean> {
+  if (isTauriEnvironment() && path) {
+    try {
+      return await invoke<boolean>('clean_session_temp_file', { path });
+    } catch (e) {
+      console.warn('Error al eliminar temporal de sesión:', e);
+    }
+  }
+  return false;
+}
+
+/**
  * Crea un Source de Mediabunny respaldado por un archivo local en disco leído por rangos en Rust.
  * Memoria acotada: solo lee los bytes solicitados (cero copias del archivo completo en RAM).
  */

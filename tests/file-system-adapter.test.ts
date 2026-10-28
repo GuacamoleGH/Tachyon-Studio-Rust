@@ -7,6 +7,7 @@ import {
   runFfmpegCommand,
   executeSafeFfmpeg,
   openSessionDialog,
+  createSaveVideoWriter,
 } from '../src/core/fs/fileSystemAdapter';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -35,7 +36,7 @@ describe('FileSystemAdapter & Tauri File Layer', () => {
   it('createTauriFileSource devuelve un Source con tamaño y lectura por rangos', async () => {
     vi.mocked(invoke).mockImplementation(async (cmd: string, args: any) => {
       if (cmd === 'read_file_range') {
-        return new Array(args.length).fill(0x7a);
+        return new Uint8Array(args.length).fill(0x7a);
       }
       return [];
     });
@@ -63,7 +64,7 @@ describe('FileSystemAdapter & Tauri File Layer', () => {
   it('createZipStoredVideoSource calcula los offsets absolutos del ZIP STORED correctamente', async () => {
     vi.mocked(invoke).mockImplementation(async (cmd: string, args: any) => {
       if (cmd === 'read_file_range') {
-        return new Array(args.length).fill(0x33);
+        return new Uint8Array(args.length).fill(0x33);
       }
       return [];
     });
@@ -187,6 +188,35 @@ describe('FileSystemAdapter & Tauri File Layer', () => {
         codec: 'copy',
       },
     });
+
+    delete (globalThis as any).__TAURI_INTERNALS__;
+  });
+
+  it('createSaveVideoWriter envía chunks binarios raw a Rust sin Array.from', async () => {
+    (globalThis as any).__TAURI_INTERNALS__ = {};
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'pick_save_file_dialog') return 'C:\\Videos\\exported.mp4';
+      if (cmd === 'open_stream_writer') return 42;
+      return null;
+    });
+
+    const writerOutput = await createSaveVideoWriter('test_video', 'mp4');
+    expect(writerOutput).not.toBeNull();
+    const writer = writerOutput!.writable.getWriter();
+    const chunkData = new Uint8Array([1, 2, 3, 4]);
+    await writer.write({ type: 'write', data: chunkData, position: 0 });
+    await writer.close();
+
+    expect(invoke).toHaveBeenCalledWith(
+      'write_stream_chunk_raw',
+      chunkData,
+      expect.objectContaining({
+        headers: {
+          'x-handle-id': '42',
+          'x-position': '0',
+        },
+      })
+    );
 
     delete (globalThis as any).__TAURI_INTERNALS__;
   });

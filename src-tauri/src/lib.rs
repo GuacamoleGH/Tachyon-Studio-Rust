@@ -334,7 +334,7 @@ mod commands {
         path: String,
         offset: u64,
         length: usize,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<tauri::ipc::Response, String> {
         let p = validate_path(&grant_state, &path)?;
         let mut file = File::open(&p).map_err(|e| format!("No se pudo abrir el archivo '{}': {}", path, e))?;
         file.seek(SeekFrom::Start(offset))
@@ -346,7 +346,7 @@ mod commands {
             .map_err(|e| format!("Error leyendo bytes del archivo: {}", e))?;
 
         buffer.truncate(bytes_read);
-        Ok(buffer)
+        Ok(tauri::ipc::Response::new(buffer))
     }
 
     #[tauri::command]
@@ -390,6 +390,43 @@ mod commands {
             .map_err(|e| format!("Fallo en seek({}) de descriptor #{}: {}", position, handle_id, e))?;
 
         file.write_all(&chunk)
+            .map_err(|e| format!("Fallo al escribir {} bytes en #{}: {}", chunk.len(), handle_id, e))?;
+
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub fn write_stream_chunk_raw(
+        state: State<'_, StreamWriterState>,
+        request: tauri::ipc::Request<'_>,
+    ) -> Result<(), String> {
+        let headers = request.headers();
+        let handle_id: u32 = headers
+            .get("x-handle-id")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|s| s.parse().ok())
+            .ok_or_else(|| "Header 'x-handle-id' ausente o inválido".to_string())?;
+
+        let position: u64 = headers
+            .get("x-position")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|s| s.parse().ok())
+            .ok_or_else(|| "Header 'x-position' ausente o inválido".to_string())?;
+
+        let chunk = match request.body() {
+            tauri::ipc::InvokeBody::Raw(bytes) => bytes.as_slice(),
+            _ => return Err("El cuerpo de la solicitud no es binario raw".to_string()),
+        };
+
+        let mut writers = state.writers.lock().map_err(|e| e.to_string())?;
+        let file = writers
+            .get_mut(&handle_id)
+            .ok_or_else(|| format!("Descriptor de escritura #{} no encontrado o cerrado", handle_id))?;
+
+        file.seek(SeekFrom::Start(position))
+            .map_err(|e| format!("Fallo en seek({}) de descriptor #{}: {}", position, handle_id, e))?;
+
+        file.write_all(chunk)
             .map_err(|e| format!("Fallo al escribir {} bytes en #{}: {}", chunk.len(), handle_id, e))?;
 
         Ok(())
@@ -796,6 +833,7 @@ pub fn run() {
             commands::read_file_range,
             commands::open_stream_writer,
             commands::write_stream_chunk,
+            commands::write_stream_chunk_raw,
             commands::close_stream_writer,
             commands::inspect_zip_session,
             commands::extract_zip_video_to_temp,

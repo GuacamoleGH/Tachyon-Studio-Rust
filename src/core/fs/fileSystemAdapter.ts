@@ -182,12 +182,12 @@ export function createTauriFileSource(filePath: string, totalSize: number): Sour
     getSize: () => totalSize,
     read: async (start, end) => {
       const length = end - start;
-      const bytes = await invoke<number[]>('read_file_range', {
+      const raw = await invoke<ArrayBuffer | Uint8Array>('read_file_range', {
         path: filePath,
         offset: start,
         length,
       });
-      return new Uint8Array(bytes);
+      return raw instanceof Uint8Array ? raw : new Uint8Array(raw);
     },
     prefetchProfile: 'fileSystem',
   });
@@ -207,12 +207,12 @@ export function createZipStoredVideoSource(
     read: async (start, end) => {
       const length = end - start;
       const absoluteOffset = dataOffset + start;
-      const bytes = await invoke<number[]>('read_file_range', {
+      const raw = await invoke<ArrayBuffer | Uint8Array>('read_file_range', {
         path: zipPath,
         offset: absoluteOffset,
         length,
       });
-      return new Uint8Array(bytes);
+      return raw instanceof Uint8Array ? raw : new Uint8Array(raw);
     },
     prefetchProfile: 'fileSystem',
   });
@@ -254,10 +254,11 @@ export async function createSaveVideoWriter(
 
     const writable = new WritableStream<{ type: 'write'; data: Uint8Array; position: number }>({
       async write(chunk) {
-        await invoke('write_stream_chunk', {
-          handleId,
-          position: chunk.position,
-          chunk: Array.from(chunk.data),
+        await invoke('write_stream_chunk_raw', chunk.data, {
+          headers: {
+            'x-handle-id': handleId.toString(),
+            'x-position': chunk.position.toString(),
+          },
         });
       },
       async close() {

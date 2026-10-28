@@ -44,12 +44,44 @@ Para monitorear el consumo de memoria real durante el renderizado:
 
 ---
 
-## 4. Tabla de Comparación de Rendimiento
+## 4. Tabla de Comparación de Rendimiento y Mediciones
 
-| Métrica | Pipeline Web Anterior (F0) | Pipeline Optimizado (F2) | Estado de Prueba |
+> **Nota sobre el estado de las mediciones:** Siguiendo la política de rigor técnico, se distingue estrictamente entre lo *implementado*, lo *probado con datos sintéticos en tests* y lo *medido físicamente en la máquina local*. Debido a que el entorno de desarrollo automatizado carece de sesión interactiva de GPU/WebView2 para renderizar interactivamente el vídeo de 4.5 GB, los valores de pico de memoria real quedan marcados como **NO MEDIDO** hasta que ejecutes el protocolo descrito en la sección 3 en tu entorno.
+
+| Métrica | Pipeline Web Anterior (F0) | Pipeline Optimizado (F2) | Estado y Evidencia |
 |---|---|---|---|
-| **RAM en reposo (Idle)** | ~125 MB | ~110 - 130 MB | Probado en entorno local |
-| **RAM pico (Vídeo 4.5 GB, render 30 min)** | **> 2.5 GB (Crash / OOM de V8)** | **< 350 MB (Memoria acotada)** | Validado por diseño en streaming |
-| **Pista de Audio en MP4** | ❌ Ninguna (Vídeo mudo) | ✅ **Pista AAC original preservada** | Implementado con `EncodedAudioPacketSource` |
-| **Garantía de cuadro exacto** | ❌ No (Timeout 250 ms causaba cuadros congelados/antiguos) | ✅ **Determinista garantizado** (Error explícito si no coincide) | 42/42 Tests Vitest superados |
+| **RAM en reposo (Idle)** | [NO MEDIDO] | [NO MEDIDO] | Pendiente de medición con `measure-memory.ps1` |
+| **RAM pico `tachyon-studio.exe` (Vídeo 4.5 GB, 30 min)** | N/A (era aplicación web pura) | [NO MEDIDO] | Pendiente de medición local por el usuario |
+| **RAM pico `msedgewebview2.exe` (Vídeo 4.5 GB, 30 min)** | > 2.5 GB (Crash / OOM de V8 en navegador) | [NO MEDIDO] | Pendiente de medición local por el usuario |
+| **RAM pico combinada total** | Crash / Desbordamiento de memoria | [NO MEDIDO] | Pendiente de medición local por el usuario |
+| **Transferencia IPC de datos** | Listas JSON de enteros en RAM | Binario raw con `tauri::ipc::Response` y `Request` | Implementado y verificado en tests unitarios |
+| **Pista de Audio en MP4** | ❌ Ninguna (Vídeo mudo sin aviso) | ✅ **AAC Passthrough con advertencias visibles** | Implementado con `EncodedAudioPacketSource` y alertas UI |
+| **Garantía de cuadro exacto** | ❌ No (Timeout 250 ms causaba cuadros congelados) | ✅ **Determinista garantizado** (Error explícito si no coincide) | 69/69 Tests Vitest + 8/8 Tests Rust (77 tests superados) |
 | **Contrapresión de Codificación** | `if` simple de 10 ms | Promesa nativa en `CanvasSource.add()` | Implementado y verificado |
+| **Vídeo STORED en ZIP** | Extraía innecesariamente a `%TEMP%` | ✅ **Lectura directa por rangos sin extraer** | Implementado y probado con tests de integración |
+| **Vídeo suelto externo** | No soportado | ✅ **Detección automática en carpeta de sesión** | Implementado y probado en tests |
+
+---
+
+## 5. Procedimiento Paso a Paso para Registrar tus Mediciones Reales
+
+Sigue estos pasos en tu máquina para completar la tabla superior con las cifras reales:
+
+1. **Genera el vídeo sintético de 4.5 GB** (en la raíz de `Tachyon-Studio-Rust`):
+   ```powershell
+   ffmpeg -f lavfi -i testsrc2=size=1920x1080:rate=30 -vf "drawtext=fontfile='C\:/Windows/Fonts/arial.ttf':text='TIME %{pts\:hms} FRAME %{frame_num}':x=60:y=60:fontsize=48:fontcolor=white:box=1:boxcolor=black@0.8" -f lavfi -i sine=frequency=220 -t 1800 -c:v libx264 -b:v 20M -pix_fmt yuv420p -c:a aac big_test.mp4
+   ```
+2. **Abre un terminal de PowerShell (Terminal A)** y lanza el monitor:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\measure-memory.ps1
+   ```
+3. **Abre un segundo terminal (Terminal B)** e inicia Tachyon Studio:
+   ```powershell
+   npm.cmd run tauri dev
+   ```
+4. En la interfaz gráfica de Tachyon Studio:
+   - Carga la sesión de telemetría (o la muestra sintética desde la barra superior).
+   - Haz clic en **Vincular Vídeo MP4** y selecciona `big_test.mp4`.
+   - Abre la pestaña **Exportar Vídeo** y pulsa **Iniciar Renderizado** (modo Vídeo MP4 Combinado).
+5. Observa el Terminal A: registrará el pico de memoria `WorkingSet64` y `PrivateMemorySize64` de `tachyon-studio.exe` y de las instancias de `msedgewebview2.exe`.
+6. Al finalizar el renderizado o detener el script, copia los valores de **PICO** en la tabla superior sustituyendo las marcas `[NO MEDIDO]`.

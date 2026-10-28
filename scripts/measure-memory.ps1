@@ -16,22 +16,25 @@ Write-Host " TACHYON STUDIO - MONITOR DE CONSUMO DE MEMORIA (RAM)     " -Foregro
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 $peakTotalMB = 0
+$peakTachyonMB = 0
+$peakWebViewMB = 0
 $startTime = Get-Date
 
 while (((Get-Date) - $startTime).TotalSeconds -lt $MaxDurationSec) {
-    $processes = Get-Process -Name "tachyon-studio", "msedgewebview2" -ErrorAction SilentlyContinue
-    if ($processes) {
-        $totalWorkingSetMB = [Math]::Round(($processes | Measure-Object -Property WorkingSet64 -Sum).Sum / 1MB, 2)
-        $totalPrivateMB = [Math]::Round(($processes | Measure-Object -Property PrivateMemorySize64 -Sum).Sum / 1MB, 2)
+    $tachyonProcs = Get-Process -Name "tachyon-studio" -ErrorAction SilentlyContinue
+    $webviewProcs = Get-Process -Name "msedgewebview2" -ErrorAction SilentlyContinue
 
-        if ($totalWorkingSetMB -gt $peakTotalMB) {
-            $peakTotalMB = $totalWorkingSetMB
-        }
+    $tachyonMB = if ($tachyonProcs) { [Math]::Round(($tachyonProcs | Measure-Object -Property WorkingSet64 -Sum).Sum / 1MB, 2) } else { 0 }
+    $webviewMB = if ($webviewProcs) { [Math]::Round(($webviewProcs | Measure-Object -Property WorkingSet64 -Sum).Sum / 1MB, 2) } else { 0 }
+    $totalWorkingSetMB = [Math]::Round($tachyonMB + $webviewMB, 2)
 
+    if ($tachyonMB -gt $peakTachyonMB) { $peakTachyonMB = $tachyonMB }
+    if ($webviewMB -gt $peakWebViewMB) { $peakWebViewMB = $webviewMB }
+    if ($totalWorkingSetMB -gt $peakTotalMB) { $peakTotalMB = $totalWorkingSetMB }
+
+    if ($tachyonProcs -or $webviewProcs) {
         $timestamp = (Get-Date).ToString("HH:mm:ss")
-        $procCount = $processes.Count
-
-        Write-Host "[$timestamp] Procesos activos: $procCount | RAM Actual (WorkingSet): $totalWorkingSetMB MB | Privada: $totalPrivateMB MB | PICO: $peakTotalMB MB" -ForegroundColor Yellow
+        Write-Host "[$timestamp] tachyon-studio: $tachyonMB MB (pico $peakTachyonMB MB) | msedgewebview2: $webviewMB MB (pico $peakWebViewMB MB) | TOTAL: $totalWorkingSetMB MB (pico $peakTotalMB MB)" -ForegroundColor Yellow
     } else {
         Write-Host "[Esperando procesos 'tachyon-studio' o 'msedgewebview2'...]" -ForegroundColor Gray
     }
@@ -40,5 +43,8 @@ while (((Get-Date) - $startTime).TotalSeconds -lt $MaxDurationSec) {
 }
 
 Write-Host "----------------------------------------------------------" -ForegroundColor Green
-Write-Host "MONITOREO FINALIZADO. Pico maximo de RAM registrado: $peakTotalMB MB" -ForegroundColor Green
+Write-Host "MONITOREO FINALIZADO:" -ForegroundColor Green
+Write-Host "  Pico tachyon-studio.exe : $peakTachyonMB MB" -ForegroundColor Green
+Write-Host "  Pico msedgewebview2.exe : $peakWebViewMB MB" -ForegroundColor Green
+Write-Host "  Pico Combinado Total    : $peakTotalMB MB" -ForegroundColor Green
 Write-Host "----------------------------------------------------------" -ForegroundColor Green

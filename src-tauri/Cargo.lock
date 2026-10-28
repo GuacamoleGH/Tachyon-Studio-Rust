@@ -3057,6 +3057,7 @@ dependencies = [
 name = "tachyon-studio"
 version = "2.5.0"
 dependencies = [
+ "dunce",
  "log",
  "serde",
  "serde_json",

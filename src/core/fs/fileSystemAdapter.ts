@@ -1,5 +1,4 @@
 import { invoke } from '@tauri-apps/api/core';
-import { open, save } from '@tauri-apps/plugin-dialog';
 import { CustomSource, type Source } from 'mediabunny';
 import { sanitizeFilename } from '../utils/fileUtils';
 
@@ -65,16 +64,14 @@ export function isTauriEnvironment(): boolean {
  */
 export async function openSessionDialog(): Promise<UnifiedFileHandle | null> {
   if (isTauriEnvironment()) {
-    const selected = await open({
-      multiple: false,
-      directory: false,
+    const selected = await invoke<string | null>('pick_file_dialog', {
+      title: 'Seleccionar Paquete de Sesión Tachyon (ZIP)',
       filters: [
         {
           name: 'Sesión Tachyon (*.zip)',
           extensions: ['zip'],
         },
       ],
-      title: 'Seleccionar Paquete de Sesión Tachyon (ZIP)',
     });
 
     if (!selected || typeof selected !== 'string') return null;
@@ -117,16 +114,14 @@ export async function openSessionDialog(): Promise<UnifiedFileHandle | null> {
  */
 export async function openVideoDialog(): Promise<UnifiedFileHandle | null> {
   if (isTauriEnvironment()) {
-    const selected = await open({
-      multiple: false,
-      directory: false,
+    const selected = await invoke<string | null>('pick_file_dialog', {
+      title: 'Seleccionar Archivo de Vídeo Original',
       filters: [
         {
           name: 'Vídeo MP4 / MOV / WebM',
           extensions: ['mp4', 'mov', 'mkv', 'webm'],
         },
       ],
-      title: 'Seleccionar Archivo de Vídeo Original',
     });
 
     if (!selected || typeof selected !== 'string') return null;
@@ -242,15 +237,15 @@ export async function createSaveVideoWriter(
     const cleanBase = sanitizeFilename(suggestedName.replace(new RegExp(`\\.${ext}$`, 'i'), ''));
     const safeDefaultPath = `${cleanBase}.${ext}`;
 
-    const selected = await save({
+    const selected = await invoke<string | null>('pick_save_file_dialog', {
+      title: 'Guardar Vídeo Exportado',
+      defaultPath: safeDefaultPath,
       filters: [
         {
           name: ext === 'webm' ? 'Vídeo WebM' : 'Vídeo MP4',
           extensions: [ext],
         },
       ],
-      defaultPath: safeDefaultPath,
-      title: 'Guardar Vídeo Exportado',
     });
 
     if (!selected || typeof selected !== 'string') return null;
@@ -342,6 +337,23 @@ export async function runFfmpegCommand(args: string[]): Promise<string> {
     throw new Error('FFmpeg sidecar solo está disponible en el entorno de escritorio nativo (Tauri).');
   }
   return await invoke<string>('run_ffmpeg_command', { args });
+}
+
+export interface SafeFfmpegOp {
+  operation: 'version' | 'extract_audio';
+  input_path?: string;
+  output_path?: string;
+  codec?: string;
+}
+
+/**
+ * Ejecuta una operación fija de FFmpeg con parámetros y rutas validadas.
+ */
+export async function executeSafeFfmpeg(op: SafeFfmpegOp): Promise<string> {
+  if (!isTauriEnvironment()) {
+    throw new Error('FFmpeg nativo solo está disponible en el entorno de escritorio nativo (Tauri).');
+  }
+  return await invoke<string>('execute_safe_ffmpeg', { op });
 }
 
 export interface VideoFileItem {
@@ -443,16 +455,14 @@ export function sortGoProFiles(items: VideoFileItem[]): VideoFileItem[] {
  */
 export async function openMultipleVideosDialog(): Promise<VideoFileItem[]> {
   if (isTauriEnvironment()) {
-    const selected = await open({
-      multiple: true,
-      directory: false,
+    const selected = await invoke<string[] | null>('pick_files_dialog', {
+      title: 'Seleccionar capítulos de vídeo GoPro para unir',
       filters: [
         {
           name: 'Vídeos (*.mp4, *.mov, *.mkv)',
           extensions: ['mp4', 'mov', 'mkv', 'webm', 'm4v'],
         },
       ],
-      title: 'Seleccionar capítulos de vídeo GoPro para unir',
     });
 
     if (!selected) return [];
@@ -511,15 +521,15 @@ export async function openMultipleVideosDialog(): Promise<VideoFileItem[]> {
  */
 export async function saveVideoDialog(suggestedName: string): Promise<string | null> {
   if (isTauriEnvironment()) {
-    const selected = await save({
+    const selected = await invoke<string | null>('pick_save_file_dialog', {
       defaultPath: suggestedName,
+      title: 'Guardar vídeo GoPro unido',
       filters: [
         {
           name: 'Vídeo MP4 (*.mp4)',
           extensions: ['mp4'],
         },
       ],
-      title: 'Guardar vídeo GoPro unido',
     });
     return selected || null;
   }

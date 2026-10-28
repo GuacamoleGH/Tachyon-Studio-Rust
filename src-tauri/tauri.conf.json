@@ -29,19 +29,17 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; img-src 'self' asset: https://tile.openstreetmap.org https://*.cartocdn.com blob: data:; media-src 'self' asset: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://tile.openstreetmap.org https://*.cartocdn.com asset:; font-src 'self' data:;",
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "**",
-          "$TEMP/**",
-          "$APPDATA/**",
-          "$APPLOCALDATA/**",
-          "$HOME/**",
+          "$TEMP/tachyon*/**",
+          "$TEMP/tachyon*",
           "$VIDEO/**",
           "$DOWNLOAD/**",
           "$DESKTOP/**",
-          "$DOCUMENT/**"
+          "$DOCUMENT/**",
+          "$APPLOCALDATA/**"
         ]
       }
     }

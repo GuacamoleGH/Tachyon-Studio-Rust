@@ -26,3 +26,19 @@ tauri = { version = "2.12.5", features = ["protocol-asset"] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+# Optimización para que la compilación ocupe mucho menos espacio en disco:
+# 1. En debug: reducir símbolos de depuración pesados a 'line-tables-only' (debug = 1),
+#    lo que reduce el tamaño de target/ en más de un 60-70% (archivos .pdb gigantes en Windows).
+[profile.dev]
+debug = 1
+incremental = true
+
+# 2. En release: reducir tamaño final del binario y evitar archivos de depuración redundantes.
+[profile.release]
+debug = 0
+strip = true
+lto = "thin"
+opt-level = "z"
+panic = "abort"
+codegen-units = 1

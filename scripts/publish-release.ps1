@@ -1,5 +1,7 @@
-# Script para publicar Release oficial en GitHub con instalador y portable
+﻿# Script para publicar Release oficial en GitHub con instalador y portable
 $ErrorActionPreference = "Stop"
+
+Set-Location (Resolve-Path (Join-Path $PSScriptRoot ".."))
 
 $repo = "GuacamoleGH/Tachyon-Studio-Rust"
 $tag = "v2.5.0"

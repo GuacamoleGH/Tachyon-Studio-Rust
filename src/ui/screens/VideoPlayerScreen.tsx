@@ -678,8 +678,8 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
           className="absolute inset-0 w-full h-full object-contain pointer-events-none"
         />
 
-        {/* Overlay de pausa en el centro */}
-        {!isPlaying && !videoLoadError && (
+        {/* Overlay de pausa en el centro (solo cuando hay vídeo cargado y pausado) */}
+        {videoUrl && !isPlaying && !videoLoadError && (
           <button
             onClick={togglePlay}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-[#13181E]/80 backdrop-blur-md border border-[#2C3947] text-[#00E676] flex items-center justify-center shadow-2xl hover:scale-110 transition-all cursor-pointer opacity-85 hover:opacity-100"

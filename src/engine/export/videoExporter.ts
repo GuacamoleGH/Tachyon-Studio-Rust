@@ -58,6 +58,7 @@ export interface VideoExporterOptions {
   onProgress?: (p: ExportProgress) => void;
   onWarning?: (w: ExportWarning) => void;
   allowSilentAudio?: boolean;
+  syncOffsetSec?: number;
   cancellationToken?: { isCancelled: boolean };
 }
 
@@ -373,9 +374,11 @@ export class VideoExporter {
           ctx.fillRect(0, 0, width, height);
         }
 
-        // Dibujar el instrumental vectorial y overlays en el instante t exacto
-        const snap = engine.query(t);
-        renderer.render(ctx as any, snap, profile, t, allPoints);
+        // Dibujar el instrumental vectorial y overlays en el instante t exacto (con compensación de sincronización)
+        const syncOffset = options.syncOffsetSec || 0.0;
+        const telemetryTime = t + syncOffset;
+        const snap = engine.query(telemetryTime);
+        renderer.render(ctx as any, snap, profile, telemetryTime, allPoints);
 
         // Añadir muestra al canal de salida con contrapresión automática integrada
         await canvasSource.add(outTimestampSec, frameDuration);

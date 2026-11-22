@@ -126,6 +126,7 @@ export interface SessionBundle {
   videoZipPath?: string;
   videoOversized?: boolean;
   videoLoadWarning?: string;
+  syncOffsetSec?: number;
 
   rawCsvText: string;
   points: TelemetryPoint[];

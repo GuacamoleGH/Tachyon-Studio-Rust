@@ -22,7 +22,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![WebCodecs](https://img.shields.io/badge/WebCodecs-Hardware%20Accel-00E676?style=for-the-badge&logo=webgpu&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API)
-[![Tests](https://img.shields.io/badge/Vitest-69%2F69%20Passing-00E5FF?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Vitest-70%2F70%20Passing-00E5FF?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![License](https://img.shields.io/badge/License-MIT-FFB300?style=for-the-badge)](LICENSE)
 
 [**Características**](#-características-principales) •
@@ -60,6 +60,7 @@ Permite importar paquetes de sesión (`.zip`) o vincular vídeos MP4 externos ju
 - **24 Widgets de Competición:** Tacómetros circulares, de barra GT, estilo Forza Motorsport y display horizontal F1 con indicador de marcha instantáneo, shift lights, manómetro de turbo (boost), consumo instantáneo, monitor térmico IAT, acelerómetro IMU 3D, círculos G-Meter, altímetro, récords de sesión, precisión GNSS y coordenadas WGS84.
 - **9 Plantillas Profesionales Listas para Usar:** Diseños inspirados en Forza Motorsport, monoplazas de F1, WRC Rally, tandas de Track Day, turbo diagnosis OBD, karting MyChron 5 y cabinas despejadas.
 - **Unidor de Capítulos de Vídeo GoPro Lossless:** Herramienta integrada que fusiona en segundos los fragmentos de ~12 minutos de cámaras GoPro en un archivo continuo sin pérdida de calidad y con vinculación automática al reproductor.
+- **Sincronización Fina Telemetría ↔ Vídeo en Vivo:** Control de desfase temporal interactivo (`±0.1s` y `±1s` o teclas `[` y `]`) con actualización visual instantánea del GPS en el mapa y la instrumentación, aplicable automáticamente tanto en el reproductor como en la exportación de vídeo.
 - **Modo Portable y Ligero:** Ejecutable directo de solo 6 MB (`Tachyon-Studio.exe`) e instalador NSIS de 4 MB sin necesidad de configuración previa.
 - **100% Local y Privado:** Todo el procesamiento se realiza en tu ordenador sin enviar ningún dato o vídeo a servidores externos.
 

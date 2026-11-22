@@ -229,6 +229,7 @@ export const RenderModal: React.FC<RenderModalProps> = ({
         width: resolution.width,
         height: resolution.height,
         bitrate,
+        syncOffsetSec: session.syncOffsetSec || 0.0,
         videoSourceElement: hiddenVideoRef.current,
         videoBlob: session.videoBlob,
         customSource: session.videoSource,

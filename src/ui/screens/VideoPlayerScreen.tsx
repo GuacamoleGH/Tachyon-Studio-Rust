@@ -83,6 +83,23 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
   const [isJoinerModalOpen, setIsJoinerModalOpen] = useState<boolean>(false);
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
 
+  // Estado de sincronización fina entre vídeo y telemetría/GPS (en segundos)
+  const [syncOffsetSec, setSyncOffsetSec] = useState<number>(() => session.syncOffsetSec || 0.0);
+
+  const handleAdjustSync = useCallback((delta: number) => {
+    setSyncOffsetSec((prev) => {
+      const next = Math.round((prev + delta) * 100) / 100;
+      session.syncOffsetSec = next;
+      return next;
+    });
+  }, [session]);
+
+  const handleSetSync = useCallback((val: number) => {
+    const rounded = Math.round(val * 100) / 100;
+    setSyncOffsetSec(rounded);
+    session.syncOffsetSec = rounded;
+  }, [session]);
+
   // Puntos de corte para la exportación de vídeo (Inicio / Fin)
   const [exportStartSec, setExportStartSec] = useState<number>(0.0);
   const [exportEndSec, setExportEndSec] = useState<number>(() => session.durationSec || 90.0);
@@ -154,8 +171,11 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
     }
   }, [videoUrl, session, isExtracting, handleAutoExtractVideo]);
 
-  // Snapshot actual en currentTime
-  const snapshot = useMemo(() => engine.query(currentTime), [engine, currentTime]);
+  // Snapshot actual en currentTime compensado con syncOffsetSec
+  const snapshot = useMemo(
+    () => engine.query(currentTime + syncOffsetSec),
+    [engine, currentTime, syncOffsetSec]
+  );
 
   const handleSelectLocalVideo = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -267,18 +287,19 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
       if (!ctx) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const snap = engine.query(t);
-      overlayRenderer.render(ctx, snap, profile, t, session.points);
+      const telemetryTime = t + syncOffsetSec;
+      const snap = engine.query(telemetryTime);
+      overlayRenderer.render(ctx, snap, profile, telemetryTime, session.points);
     },
-    [engine, overlayRenderer, profile, session.points]
+    [engine, overlayRenderer, profile, session.points, syncOffsetSec]
   );
 
-  // Redibujar cuando cambia currentTime estando pausado
+  // Redibujar cuando cambia currentTime o syncOffsetSec estando pausado
   useEffect(() => {
     if (!isPlaying) {
       drawOverlayFrame(currentTime);
     }
-  }, [currentTime, isPlaying, drawOverlayFrame]);
+  }, [currentTime, syncOffsetSec, isPlaying, drawOverlayFrame]);
 
   // Redibujar inmediatamente cuando se descargue cualquier tesela de mapa (OSM / CartoDB)
   useEffect(() => {
@@ -457,7 +478,7 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
     }
   };
 
-  // Atajos de teclado (Espacio = Play/Pause, Flechas = Seek)
+  // Atajos de teclado (Espacio = Play/Pause, Flechas = Seek, [ ] = Ajuste fino sincronización)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
@@ -471,6 +492,12 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
         seekTo(currentTime + (e.shiftKey ? 1.0 : 5.0));
+      } else if (e.code === 'BracketLeft') {
+        e.preventDefault();
+        handleAdjustSync(e.shiftKey ? -1.0 : -0.1);
+      } else if (e.code === 'BracketRight') {
+        e.preventDefault();
+        handleAdjustSync(e.shiftKey ? 1.0 : 0.1);
       }
     };
 
@@ -494,7 +521,9 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
           <div>
             <span className="text-sm font-bold text-[#F0F4F8]">{session.title}</span>
             <span className="text-xs text-[#8B9CB0] ml-2 font-mono">
-              {session.hasVideo ? 'Vídeo original sincronizado (t=0.000s)' : 'Modo sólo telemetría'}
+              {session.hasVideo
+                ? `Vídeo sincronizado (offset: ${syncOffsetSec >= 0 ? '+' : ''}${syncOffsetSec.toFixed(2)}s)`
+                : 'Modo sólo telemetría'}
             </span>
           </div>
         </div>
@@ -539,6 +568,62 @@ export const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({ session, p
             <Film className="w-3.5 h-3.5" />
             <span>Unir Vídeos GoPro</span>
           </button>
+
+          {/* Control interactivo de Sincronización Telemetría <-> Vídeo */}
+          <div
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1A222B] border border-[#2C3947] text-xs font-mono"
+            title="Ajuste fino de sincronización entre el vídeo y la telemetría/GPS. Atajos: [ y ] (-0.1s / +0.1s, con Shift -1s / +1s)"
+          >
+            <Clock className="w-3.5 h-3.5 text-[#00E5FF] mr-0.5" />
+            <span className="text-[#8B9CB0] text-[11px] font-semibold">Sincro:</span>
+            <button
+              onClick={() => handleAdjustSync(-1.0)}
+              className="px-1.5 py-0.5 rounded bg-[#2C3947]/70 hover:bg-[#3d4f63] text-[#F0F4F8] hover:text-[#00E5FF] transition-colors cursor-pointer text-[10px]"
+              title="Restar 1 segundo a la telemetría (Shift + [)"
+            >
+              -1s
+            </button>
+            <button
+              onClick={() => handleAdjustSync(-0.1)}
+              className="px-1.5 py-0.5 rounded bg-[#2C3947]/70 hover:bg-[#3d4f63] text-[#F0F4F8] hover:text-[#00E5FF] transition-colors cursor-pointer text-[10px]"
+              title="Restar 0.1 segundos a la telemetría (Atajo: tecla [)"
+            >
+              -0.1s
+            </button>
+            <input
+              type="number"
+              step="0.05"
+              value={syncOffsetSec}
+              onChange={(e) => handleSetSync(parseFloat(e.target.value) || 0)}
+              className={`w-16 px-1 py-0.5 text-center font-bold text-xs rounded bg-[#0D1117] border ${
+                syncOffsetSec !== 0 ? 'border-[#00E5FF] text-[#00E5FF]' : 'border-[#2C3947] text-[#F0F4F8]'
+              }`}
+              title="Offset en segundos. Positivo (+) adelanta la telemetría/GPS; Negativo (-) la retrasa"
+            />
+            <button
+              onClick={() => handleAdjustSync(0.1)}
+              className="px-1.5 py-0.5 rounded bg-[#2C3947]/70 hover:bg-[#3d4f63] text-[#F0F4F8] hover:text-[#00E5FF] transition-colors cursor-pointer text-[10px]"
+              title="Sumar 0.1 segundos a la telemetría (Atajo: tecla ])"
+            >
+              +0.1s
+            </button>
+            <button
+              onClick={() => handleAdjustSync(1.0)}
+              className="px-1.5 py-0.5 rounded bg-[#2C3947]/70 hover:bg-[#3d4f63] text-[#F0F4F8] hover:text-[#00E5FF] transition-colors cursor-pointer text-[10px]"
+              title="Sumar 1 segundo a la telemetría (Shift + ])"
+            >
+              +1s
+            </button>
+            {syncOffsetSec !== 0 && (
+              <button
+                onClick={() => handleSetSync(0)}
+                className="ml-1 text-[10px] text-[#8B9CB0] hover:text-[#FF1744] underline cursor-pointer"
+                title="Restablecer sincronización a 0.0s"
+              >
+                Reset
+              </button>
+            )}
+          </div>
 
           {/* Control de opacidad del overlay */}
           <div className="flex items-center gap-2 text-xs font-mono text-[#8B9CB0]">

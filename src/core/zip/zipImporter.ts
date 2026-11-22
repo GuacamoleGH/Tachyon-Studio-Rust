@@ -378,6 +378,10 @@ export async function importSessionZip(
       videoCompressedInZip,
       videoZipPath,
       videoLoadWarning,
+    syncOffsetSec:
+      typeof metadata?.video_synchronization?.telemetry_to_video_offset_ms === 'number'
+        ? metadata.video_synchronization.telemetry_to_video_offset_ms / 1000
+        : 0.0,
       rawCsvText,
       points,
       timeRange,
@@ -502,6 +506,10 @@ export async function importSessionZip(
     videoUrl,
     videoOversized: extracted.videoOversized,
     videoLoadWarning,
+    syncOffsetSec:
+      typeof metadata?.video_synchronization?.telemetry_to_video_offset_ms === 'number'
+        ? metadata.video_synchronization.telemetry_to_video_offset_ms / 1000
+        : 0.0,
     rawCsvText,
     points,
     timeRange,

@@ -53,3 +53,9 @@ Esta versión introduce grandes mejoras de productividad en el **Editor de Plant
    - Ejecutable autónomo directo de solo 6 MB (`Tachyon-Studio.exe`) sin necesidad de instalación.
    - Instalador NSIS oficial de tan solo 4.1 MB.
    - Optimización de los perfiles de desarrollo y producción para evitar la acumulación excesiva de caché en disco.
+
+9. **Ajuste Interactivo de Sincronización Telemetría ↔ Vídeo (GPS / OBD)**:
+   - Nuevo control interactivo en la barra superior del reproductor con botones rápidos (`-1s`, `-0.1s`, `+0.1s`, `+1s`, entrada numérica directa y `Reset`).
+   - Atajos de teclado rápidos: pulsa `[` para retrasar la telemetría `-0.1s` (o `Shift+[` para `-1s`) y `]` para adelantarla `+0.1s` (o `Shift+]` para `+1s`).
+   - **Previsualización instantánea incluso en pausa**: perfecto para pausar el vídeo justo al pasar por una referencia física clara (como una rotonda, cruce o curva) y ajustar la sincronización viendo cómo el icono del vehículo en el minimapa y los relojes se desplazan en tiempo real hasta alinearse al milímetro con lo que ves en el vídeo.
+   - La compensación de sincronización (`syncOffsetSec`) se guarda en la sesión y se aplica automáticamente tanto en la reproducción como en el motor de exportación de vídeo (Render).

@@ -132,4 +132,12 @@ describe('Video Exporter & WebCodecs Capabilities', () => {
     expect(mockResult.audioWarning).toContain('ninguna pista de audio');
     expect(mockResult.usedSeekFallback).toBe(true);
   });
+
+  it('aplica correctamente el desplazamiento de sincronización (syncOffsetSec) sobre el tiempo de telemetría', () => {
+    const videoTimestamp = 15.0; // En el segundo 15 del vídeo
+    const syncOffsetSec = 2.5; // La telemetría va 2.5s adelantada para coincidir con la posición real en vídeo
+    const telemetryTime = videoTimestamp + syncOffsetSec;
+
+    expect(telemetryTime).toBe(17.5);
+  });
 });

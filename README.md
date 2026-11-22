@@ -22,7 +22,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![WebCodecs](https://img.shields.io/badge/WebCodecs-Hardware%20Accel-00E676?style=for-the-badge&logo=webgpu&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API)
-[![Tests](https://img.shields.io/badge/Vitest-63%2F63%20Passing-00E5FF?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Vitest-69%2F69%20Passing-00E5FF?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![License](https://img.shields.io/badge/License-MIT-FFB300?style=for-the-badge)](LICENSE)
 
 [**Características**](#-características-principales) •
@@ -50,15 +50,17 @@ Permite importar paquetes de sesión (`.zip`) o vincular vídeos MP4 externos ju
 
 ## 🌟 Características Principales
 
+- **Telemetría y HUD a 60 FPS Continuos:** Bucle de sincronización con micro-interpolación sub-frame mediante `requestAnimationFrame`. Las agujas del tacómetro, barras de RPM, velocímetro digital y marchas se actualizan a la tasa de refresco completa del monitor (60 Hz / 120 Hz / 144 Hz) adaptado a frecuencias GPS y OBD de alta densidad (hasta 10 Hz).
 - **Pipeline de Memoria Acotada en Rust:** Lectura eficiente por rangos (*range requests*) directamente desde el archivo `.zip` o disco duro. Nunca carga gigabytes de vídeo en memoria RAM.
 - **Renderizado Gráfico a 60 FPS en Canvas 2D:** Instrumentación fluida con interpolación lineal determinista y anti-aliasing de precisión subpíxel.
 - **Preservación Íntegra del Audio:** Extracción directa de los paquetes AAC de la cámara del vehículo e incrustación en el MP4 final sin pérdidas de calidad ni recodificación analógica.
 - **Sincronización Determinista Fotograma a Fotograma:** Comprobación estricta de marcas de tiempo entre la pista de vídeo y las muestras de telemetría.
-- **Editor Visual Interactivo de Plantillas:** Mueve, escala y personaliza cada widget en tiempo real con 8 manejadores de ajuste, cuadrícula y previsualización interactiva.
-- **Minimapa GPS de Alta Definición con Zoom Dinámico:** Vista centrada y fluida con zoom ajustable desde curvas cerradas / karting (40 m) hasta tramos de montaña completos (1.200 m).
-- **24 Widgets de Competición:** Tacómetros circulares, de barra GT, estilo Forza Motorsport y display horizontal F1 con indicador de marcha, shift lights, manómetro de turbo (boost), consumo instantáneo, monitor térmico IAT, acelerómetro IMU 3D, círculos G-Meter, altímetro, récords de sesión, precisión GNSS y coordenadas WGS84.
+- **Editor Visual Interactivo de Plantillas:** Mueve, escala y personaliza cada widget en tiempo real con selección múltiple (`Ctrl` / `Cmd`), ajuste pixel a pixel con flechas del teclado y selector organizado en 5 categorías.
+- **Minimapa GPS de Alta Definición con Suavizado Cinemático:** Animación fluida sin saltos ni tirones con zoom dinámico ajustable desde curvas cerradas / karting (40 m) hasta tramos de montaña completos (1.200 m).
+- **24 Widgets de Competición:** Tacómetros circulares, de barra GT, estilo Forza Motorsport y display horizontal F1 con indicador de marcha instantáneo, shift lights, manómetro de turbo (boost), consumo instantáneo, monitor térmico IAT, acelerómetro IMU 3D, círculos G-Meter, altímetro, récords de sesión, precisión GNSS y coordenadas WGS84.
 - **9 Plantillas Profesionales Listas para Usar:** Diseños inspirados en Forza Motorsport, monoplazas de F1, WRC Rally, tandas de Track Day, turbo diagnosis OBD, karting MyChron 5 y cabinas despejadas.
-- **Unidor de Capítulos de Vídeo GoPro:** Herramienta integrada que fusiona en segundos los fragmentos de ~12 minutos de cámaras GoPro en un archivo continuo sin pérdida de calidad.
+- **Unidor de Capítulos de Vídeo GoPro Lossless:** Herramienta integrada que fusiona en segundos los fragmentos de ~12 minutos de cámaras GoPro en un archivo continuo sin pérdida de calidad y con vinculación automática al reproductor.
+- **Modo Portable y Ligero:** Ejecutable directo de solo 6 MB (`Tachyon-Studio.exe`) e instalador NSIS de 4 MB sin necesidad de configuración previa.
 - **100% Local y Privado:** Todo el procesamiento se realiza en tu ordenador sin enviar ningún dato o vídeo a servidores externos.
 
 ---

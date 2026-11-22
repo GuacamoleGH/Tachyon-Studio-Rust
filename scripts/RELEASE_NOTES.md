@@ -37,3 +37,19 @@ Esta versión introduce grandes mejoras de productividad en el **Editor de Plant
 5. **Minimapa GPS Ultra-Fluido (Sin Tirones ni Micro-Stuttering)**:
    - Implementado un suavizador cinemático exponencial (EMA) para la posición del vehículo y el ángulo de rumbo (heading), transformando las señales GPS discretas de 1 Hz, 5 Hz o 10 Hz (de cámaras GoPro, móviles o receptores GNSS) en una animación suave como la seda a 60 FPS.
    - Corregido el algoritmo de culling perimetral para evitar saltos o líneas que cruzaban la pantalla cuando los puntos del circuito entraban y salían del radio del minimapa.
+
+6. **Telemetría a 60 FPS Continuos (Tacómetro, Velocímetro y Marchas)**:
+   - Nuevo bucle de sincronización con micro-interpolación sub-frame mediante `requestAnimationFrame`: el tacómetro, el velocímetro digital y las barras de cambio se mueven a la tasa de refresco completa del monitor (60 Hz / 120 Hz / 144 Hz) independientemente de los FPS del vídeo.
+   - Eliminado el filtro artificial de retardo en la velocidad, respondiendo inmediatamente a la telemetría a alta frecuencia (hasta 10 Hz OBD y GNSS).
+   - Interpolación por pasos discretos (`step`) en el indicador de marchas para cambios limpios e instantáneos.
+
+7. **Herramienta de Unión de Capítulos GoPro (Lossless) y Reproducción Local**:
+   - Detección y ordenación automática de secuencias GoPro (`GOPR` + `GP01`, `GP02`...).
+   - Vinculación automática directa al reproductor de telemetría al finalizar la unión.
+   - Optimización de copiado directo sin recodificación ni reescritura pesada de cabeceras, acelerando drásticamente el proceso en tarjetas microSD y discos externos.
+   - Soporte total del protocolo local `http://asset.localhost` en la directiva de seguridad CSP para reproducir vídeos de cualquier tamaño y procedencia sin bloqueos del sistema.
+
+8. **Modo Portable y Optimización de Tamaño**:
+   - Ejecutable autónomo directo de solo 6 MB (`Tachyon-Studio.exe`) sin necesidad de instalación.
+   - Instalador NSIS oficial de tan solo 4.1 MB.
+   - Optimización de los perfiles de desarrollo y producción para evitar la acumulación excesiva de caché en disco.

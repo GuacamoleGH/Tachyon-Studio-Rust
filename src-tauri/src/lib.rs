@@ -203,10 +203,13 @@ fn locate_ffmpeg_executable() -> Option<PathBuf> {
 
 mod commands {
     use super::*;
+    use tauri::Manager;
     use tauri_plugin_dialog::DialogExt;
 
     #[tauri::command]
-    pub fn grant_path_access(state: State<'_, PathGrantState>, path: String) -> Result<String, String> {
+    pub fn grant_path_access(app: tauri::AppHandle, state: State<'_, PathGrantState>, path: String) -> Result<String, String> {
+        let p = PathBuf::from(&path);
+        let _ = app.asset_protocol_scope().allow_file(&p);
         state.grant(&path);
         Ok(path)
     }
@@ -234,8 +237,10 @@ mod commands {
                 let canon = dunce::canonicalize(&p).unwrap_or(p);
                 if let Some(parent) = canon.parent() {
                     state.grant(parent);
+                    let _ = app.asset_protocol_scope().allow_directory(parent, false);
                 }
                 state.grant(&canon);
+                let _ = app.asset_protocol_scope().allow_file(&canon);
                 return Ok(Some(canon.to_string_lossy().to_string()));
             }
         }
@@ -267,8 +272,10 @@ mod commands {
                     let canon = dunce::canonicalize(&p).unwrap_or(p);
                     if let Some(parent) = canon.parent() {
                         state.grant(parent);
+                        let _ = app.asset_protocol_scope().allow_directory(parent, false);
                     }
                     state.grant(&canon);
+                    let _ = app.asset_protocol_scope().allow_file(&canon);
                     list.push(canon.to_string_lossy().to_string());
                 }
             }
@@ -305,8 +312,10 @@ mod commands {
                 if let Some(parent) = p.parent() {
                     let canon_parent = dunce::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
                     state.grant(&canon_parent);
+                    let _ = app.asset_protocol_scope().allow_directory(&canon_parent, false);
                 }
                 state.grant(&p);
+                let _ = app.asset_protocol_scope().allow_file(&p);
                 return Ok(Some(p.to_string_lossy().to_string()));
             }
         }
@@ -827,6 +836,7 @@ mod commands {
 
     #[tauri::command]
     pub fn concatenate_videos(
+        app: tauri::AppHandle,
         grant_state: State<'_, PathGrantState>,
         inputs: Vec<String>,
         output_path: String,
@@ -900,6 +910,10 @@ mod commands {
 
         // Conceder acceso automáticamente a la ruta de salida para poder vincularla y reproducirla de inmediato
         grant_state.grant(&validated_output);
+        let _ = app.asset_protocol_scope().allow_file(&validated_output);
+        if let Some(parent) = validated_output.parent() {
+            let _ = app.asset_protocol_scope().allow_directory(parent, false);
+        }
 
         Ok("Vídeos unidos con éxito sin pérdida de calidad.".to_string())
     }

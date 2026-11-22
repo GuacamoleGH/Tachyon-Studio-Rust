@@ -880,7 +880,6 @@ mod commands {
             "-safe", "0",
             "-i", &list_path.to_string_lossy(),
             "-c", "copy",
-            "-movflags", "+faststart",
             &validated_output.to_string_lossy(),
         ]);
 
@@ -898,6 +897,9 @@ mod commands {
             let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
             return Err(format!("FFmpeg falló al unir los vídeos: {}", stderr_str));
         }
+
+        // Conceder acceso automáticamente a la ruta de salida para poder vincularla y reproducirla de inmediato
+        grant_state.grant(&validated_output);
 
         Ok("Vídeos unidos con éxito sin pérdida de calidad.".to_string())
     }

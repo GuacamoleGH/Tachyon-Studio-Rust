@@ -7,6 +7,7 @@ import {
   cleanupTempFiles,
   cleanSessionTempFile,
 } from './core/fs/fileSystemAdapter';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { AppTab, Navbar } from './ui/components/Navbar';
 import { ZipDropzone } from './ui/components/ZipDropzone';
 import { SessionSummaryScreen } from './ui/screens/SessionSummaryScreen';
@@ -230,9 +231,20 @@ export const App: React.FC = () => {
         isOpen={isGoProJoinerOpen}
         onClose={() => setIsGoProJoinerOpen(false)}
         hasActiveSession={session !== null}
-        onVideoJoined={() => {
+        onVideoJoined={(joinedPath) => {
           setIsGoProJoinerOpen(false);
-          if (session) {
+          if (session && joinedPath) {
+            const fileName = joinedPath.split(/[\\/]/).pop() || 'GoPro_Completo.mp4';
+            const assetUrl = convertFileSrc(joinedPath);
+            setSession({
+              ...session,
+              videoPath: joinedPath,
+              videoUrl: assetUrl,
+              videoFileName: fileName,
+              hasVideo: true,
+              videoOversized: false,
+              videoLoadWarning: undefined,
+            });
             setActiveTab('player');
           }
         }}

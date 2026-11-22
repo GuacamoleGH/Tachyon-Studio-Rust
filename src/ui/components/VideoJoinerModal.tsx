@@ -153,7 +153,7 @@ export const VideoJoinerModal: React.FC<VideoJoinerModalProps> = ({
       setSuccessInfo({ path: outputPath, durationSec: elapsedSec });
       setProcessStatus(null);
 
-      if (bindToPlayer && onVideoJoined) {
+      if ((bindToPlayer || hasActiveSession) && onVideoJoined) {
         onVideoJoined(outputPath);
       }
     } catch (e: any) {
